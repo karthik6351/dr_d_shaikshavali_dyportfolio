@@ -2316,3 +2316,90 @@ ul {
         border-radius: var(--radius-xs);
     }
 }
+
+/* ===================================================
+   ADMIN PANEL & EDIT MODE
+   =================================================== */
+.admin-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    padding: 10px 20px;
+    border-radius: var(--radius-full);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 9999;
+    border: 2px solid var(--accent-primary);
+}
+
+.admin-panel span {
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.admin-login-section {
+    padding: 60px 0;
+    background: var(--bg-alt);
+    border-top: 1px solid var(--border-subtle);
+}
+
+[contenteditable="true"] {
+    outline: 2px dashed var(--accent-secondary);
+    padding: 2px;
+    border-radius: 4px;
+    background: rgba(148, 163, 184, 0.1);
+    transition: all 0.3s ease;
+}
+
+[contenteditable="true"]:focus {
+    outline: 2px solid var(--accent-primary);
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.edit-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.admin-item-actions {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    display: flex;
+    gap: 5px;
+    z-index: 999;
+    background: var(--bg-card);
+    padding: 5px;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid var(--border-subtle);
+}
+
+.admin-item-actions button {
+    background: var(--bg-alt);
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.admin-item-actions button:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.timeline-item, .exp-card, .project-card, .about-content-col li {
+    position: relative; /* Ensure absolute positioning works for actions */
+}
+

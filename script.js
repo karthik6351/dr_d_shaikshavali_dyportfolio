@@ -278,4 +278,158 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ---- Admin Functionality ----
+    const adminLoginForm = document.getElementById('adminLoginForm');
+    const adminPanel = document.getElementById('adminPanel');
+    const saveBtn = document.getElementById('saveChangesBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginError = document.getElementById('loginError');
+    const adminLoginSection = document.getElementById('adminLoginSection');
+    
+    let isAdmin = localStorage.getItem('adminToken') !== null;
+
+    function enableEditMode() {
+        if(adminPanel) adminPanel.style.display = 'flex';
+        if(adminLoginSection) adminLoginSection.style.display = 'none';
+        
+        // Make text elements editable
+        const editableTags = document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6, main p:not(.typed-text), main span:not(.fas):not(.fab):not(.bx):not(.typed-cursor):not(.stat-number):not(.section-tag), main strong, main li');
+        
+        editableTags.forEach(el => {
+            el.setAttribute('contenteditable', 'true');
+            // Remove links default behavior when editing
+            if(el.tagName.toLowerCase() === 'a' || el.closest('a')) {
+                el.addEventListener('click', e => e.preventDefault());
+            }
+        });
+
+        // Add +/- buttons to blocks
+        const blockItems = document.querySelectorAll('.timeline-item, .exp-card, .project-card, .about-content-col li');
+        blockItems.forEach(item => {
+            if (!item.querySelector('.admin-item-actions')) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'admin-item-actions';
+                actionsDiv.innerHTML = `
+                    <button class="admin-add-btn" title="Duplicate Block"><i class="fas fa-plus"></i></button>
+                    <button class="admin-remove-btn" title="Remove Block"><i class="fas fa-minus"></i></button>
+                `;
+                item.appendChild(actionsDiv);
+
+                actionsDiv.querySelector('.admin-add-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const clone = item.cloneNode(true);
+                    // Remove old actions div from clone to avoid duplicate events
+                    const cloneActions = clone.querySelector('.admin-item-actions');
+                    if (cloneActions) cloneActions.remove();
+                    item.parentNode.insertBefore(clone, item.nextSibling);
+                    // Re-run enableEditMode to attach events to new clone
+                    enableEditMode();
+                });
+
+                actionsDiv.querySelector('.admin-remove-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to remove this block?')) {
+                        item.remove();
+                    }
+                });
+            }
+        });
+    }
+
+    function disableEditMode() {
+        if(adminPanel) adminPanel.style.display = 'none';
+        if(adminLoginSection) adminLoginSection.style.display = 'block';
+        
+        const editableTags = document.querySelectorAll('[contenteditable="true"]');
+        editableTags.forEach(el => {
+            el.removeAttribute('contenteditable');
+        });
+
+        const actionsDivs = document.querySelectorAll('.admin-item-actions');
+        actionsDivs.forEach(el => el.remove());
+    }
+
+    if (isAdmin) {
+        enableEditMode();
+    }
+
+    if (adminLoginForm) {
+        adminLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('adminUser').value;
+            const password = document.getElementById('adminPass').value;
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('adminToken', data.token);
+                    if(loginError) loginError.style.display = 'none';
+                    enableEditMode();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    if(loginError) loginError.style.display = 'block';
+                }
+            } catch (err) {
+                console.error(err);
+                if(loginError) {
+                    loginError.textContent = 'Server not running. Start server.js first.';
+                    loginError.style.display = 'block';
+                }
+            }
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            
+            const mainClone = document.getElementById('main').cloneNode(true);
+            mainClone.querySelectorAll('.admin-item-actions').forEach(el => el.remove());
+            mainClone.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                el.removeAttribute('contenteditable');
+            });
+            const htmlToSave = mainClone.innerHTML;
+            
+            try {
+                const res = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: localStorage.getItem('adminToken'),
+                        mainContent: htmlToSave
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+                    setTimeout(() => saveBtn.innerHTML = originalText, 2000);
+                } else {
+                    alert('Error saving: ' + data.message);
+                    saveBtn.innerHTML = originalText;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving. Server not running.');
+                saveBtn.innerHTML = originalText;
+            }
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            disableEditMode();
+            window.location.reload();
+        });
+    }
+
 });
