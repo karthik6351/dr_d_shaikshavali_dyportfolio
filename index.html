@@ -1304,6 +1304,19 @@
                             </button>
                         </div>
 
+                        <div style="border-top: 1px solid var(--border-medium); padding-top: 24px; margin-bottom: 30px; max-width: 480px;">
+                            <h5 style="margin: 0 0 6px 0; font-size: 1rem; color: var(--accent-primary);">Render Backend API URL</h5>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0 0 12px 0;">When hosting frontend on Vercel, connect to your Render backend web service.</p>
+                            <div class="admin-field">
+                                <label>Render Web Service URL</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="url" id="inputBackendUrl" placeholder="https://dr-shaikshavali-portfolio-backend.onrender.com">
+                                    <button type="button" id="saveBackendUrlBtn" class="admin-btn admin-btn-primary">Save URL</button>
+                                </div>
+                                <div class="admin-field-hint" id="backendPingStatus">Active Backend: <span id="currentBackendDisplay" style="color: var(--accent-secondary); font-weight: 600;">Local / Default</span></div>
+                            </div>
+                        </div>
+
                         <div style="border-top: 1px solid var(--border-medium); padding-top: 24px; max-width: 440px;">
                             <h5 style="margin: 0 0 6px 0; font-size: 1rem; color: #ef4444;">Restore Default Portfolio Data</h5>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0 0 12px 0;">Resets all portfolio content to Dr. Shaikshavali's verified initial data from MongoDB seed.</p>
@@ -1346,7 +1359,8 @@
         <i class="fas fa-chevron-up"></i>
     </a>
 
-    <!-- Custom JS -->
+    <!-- Config & Custom JS -->
+    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

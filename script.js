@@ -231,18 +231,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========================================================
-    // DATA FETCHING & DYNAMIC RENDERING
+    // BACKEND URL RESOLUTION (Vercel <-> Render Linkage)
+    // ========================================================
+    function getApiBaseUrl() {
+        const custom = localStorage.getItem('customBackendUrl');
+        if (custom && custom.trim() !== '') {
+            return custom.trim().replace(/\/$/, '');
+        }
+
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocal) {
+            if (window.location.port === '3000') {
+                return '';
+            }
+            return 'http://localhost:3000';
+        }
+
+        if (window.APP_CONFIG && window.APP_CONFIG.BACKEND_URL) {
+            return window.APP_CONFIG.BACKEND_URL.trim().replace(/\/$/, '');
+        }
+
+        return 'https://dr-shaikshavali-portfolio-backend.onrender.com';
+    }
+
+    // ========================================================
+    // DATA FETCHING & DYNAMIC RENDERING (With Offline Fallback)
     // ========================================================
     async function fetchPortfolio() {
+        const baseUrl = getApiBaseUrl();
         try {
-            const res = await fetch('/api/portfolio');
+            const res = await fetch(`${baseUrl}/api/portfolio`);
             const json = await res.json();
             if (json.success && json.data) {
                 portfolioData = json.data;
                 renderPortfolio(portfolioData);
+                return;
             }
         } catch (err) {
-            console.warn('Backend server not connected or loading local files:', err.message);
+            console.warn('Backend server unreachable or starting up:', err.message);
+        }
+
+        // Resilient fallback to local static data if Render backend is sleeping
+        try {
+            const fallbackRes = await fetch('./portfolio-data.json');
+            const fallbackJson = await fallbackRes.json();
+            if (fallbackJson) {
+                portfolioData = fallbackJson;
+                renderPortfolio(portfolioData);
+            }
+        } catch (errFallback) {
+            console.warn('Local static fallback error:', errFallback.message);
         }
     }
 
@@ -631,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
 
             try {
-                const res = await fetch('/api/login', {
+                const res = await fetch(`${getApiBaseUrl()}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -652,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 if (loginError) {
-                    loginError.textContent = 'Server offline. Run node server.js first.';
+                    loginError.textContent = 'Backend server offline or waking up on Render. Please retry in a few seconds.';
                     loginError.style.display = 'block';
                 }
             } finally {
@@ -691,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('file', file);
 
             try {
-                const res = await fetch('/api/upload', {
+                const res = await fetch(`${getApiBaseUrl()}/api/upload`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -833,6 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setInputValue('inputContactLinkedIn', portfolioData.contact.linkedin);
             setInputValue('inputContactScholar', portfolioData.contact.scholar);
         }
+
+        syncBackendSettingsUI();
     }
 
     function setInputValue(id, val) {
@@ -909,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('file', file);
 
             try {
-                const res = await fetch('/api/upload', {
+                const res = await fetch(`${getApiBaseUrl()}/api/upload`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
@@ -943,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!token) return;
 
         try {
-            const res = await fetch('/api/images', {
+            const res = await fetch(`${getApiBaseUrl()}/api/images`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -987,7 +1027,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid.querySelectorAll('.btn-copy-link').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        const url = window.location.origin + btn.getAttribute('data-url');
+                        const rawUrl = btn.getAttribute('data-url');
+                        const url = rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? rawUrl : `${getApiBaseUrl()}${rawUrl}`;
                         navigator.clipboard.writeText(url);
                         showToast('Image URL copied to clipboard!');
                     });
@@ -1000,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!confirm(`Delete ${filename}?`)) return;
 
                         try {
-                            const delRes = await fetch(`/api/images/${filename}`, {
+                            const delRes = await fetch(`${getApiBaseUrl()}/api/images/${filename}`, {
                                 method: 'DELETE',
                                 headers: { 'Authorization': `Bearer ${token}` }
                             });
@@ -1600,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataToSave = await collectStudioFormData();
 
         try {
-            const res = await fetch('/api/portfolio', {
+            const res = await fetch(`${getApiBaseUrl()}/api/portfolio`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1735,7 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const token = localStorage.getItem('adminToken');
             try {
-                const res = await fetch('/api/change-password', {
+                const res = await fetch(`${getApiBaseUrl()}/api/change-password`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1765,7 +1806,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const token = localStorage.getItem('adminToken');
             try {
-                const res = await fetch('/api/reset-portfolio', {
+                const res = await fetch(`${getApiBaseUrl()}/api/reset-portfolio`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -1782,8 +1823,70 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ========================================================
+    // BACKEND SETTINGS & UPTIME MONITOR LINK
+    // ========================================================
+    const inputBackendUrl = document.getElementById('inputBackendUrl');
+    const saveBackendUrlBtn = document.getElementById('saveBackendUrlBtn');
+    const currentBackendDisplay = document.getElementById('currentBackendDisplay');
+    const backendPingStatus = document.getElementById('backendPingStatus');
+
+    function syncBackendSettingsUI() {
+        const activeUrl = getApiBaseUrl();
+        if (inputBackendUrl) {
+            const custom = localStorage.getItem('customBackendUrl');
+            inputBackendUrl.value = custom || (window.APP_CONFIG ? window.APP_CONFIG.BACKEND_URL : activeUrl);
+        }
+        if (currentBackendDisplay) {
+            currentBackendDisplay.textContent = activeUrl || 'Local / Default';
+        }
+    }
+
+    if (saveBackendUrlBtn && inputBackendUrl) {
+        saveBackendUrlBtn.addEventListener('click', async () => {
+            const orig = saveBackendUrlBtn.innerHTML;
+            saveBackendUrlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+            const rawVal = inputBackendUrl.value.trim().replace(/\/$/, '');
+            if (rawVal) {
+                localStorage.setItem('customBackendUrl', rawVal);
+            } else {
+                localStorage.removeItem('customBackendUrl');
+            }
+
+            syncBackendSettingsUI();
+
+            const testUrl = getApiBaseUrl();
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const pingRes = await fetch(`${testUrl}/api/health`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                const pingJson = await pingRes.json();
+
+                if (pingJson.status === 'healthy') {
+                    showToast(`Connected to Render backend! Server uptime: ${pingJson.uptime}s`);
+                    if (backendPingStatus) {
+                        backendPingStatus.innerHTML = `Active Backend: <span style="color: #10b981; font-weight: 600;">Connected (${testUrl})</span>`;
+                    }
+                    await fetchPortfolio();
+                } else {
+                    showToast('Backend responded, but reported unexpected status.', 'error');
+                }
+            } catch (pingErr) {
+                showToast('URL saved! Render backend may be waking up. Will connect once alive.', 'error');
+                if (backendPingStatus) {
+                    backendPingStatus.innerHTML = `Active Backend: <span style="color: #f59e0b; font-weight: 600;">Connecting / Waking up (${testUrl})</span>`;
+                }
+            } finally {
+                saveBackendUrlBtn.innerHTML = orig;
+            }
+        });
+    }
+
     // Initialize Page
     updateAdminUI();
+    syncBackendSettingsUI();
     fetchPortfolio();
 
 });

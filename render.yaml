@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: dr-shaikshavali-portfolio-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        value: mongodb+srv://mangolabzyk_db_user:nhab1Q3FTxuh07Tn@cluster0.hch0hmv.mongodb.net/shaikshavali_portfolio?retryWrites=true&w=majority
+      - key: MONGODB_DIRECT_URI
+        value: mongodb://mangolabzyk_db_user:nhab1Q3FTxuh07Tn@ac-wibtliu-shard-00-00.hch0hmv.mongodb.net:27017,ac-wibtliu-shard-00-01.hch0hmv.mongodb.net:27017,ac-wibtliu-shard-00-02.hch0hmv.mongodb.net:27017/shaikshavali_portfolio?ssl=true&authSource=admin&replicaSet=atlas-ccp5by-shard-0&retryWrites=true&w=majority
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASS
+        value: Shah321

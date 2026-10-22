@@ -21,7 +21,11 @@ if (!fs.existsSync(uploadsDir)) {
 const localDataFile = path.join(__dirname, 'portfolio-data.json');
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -650,8 +654,20 @@ const verifyAuth = (req, res, next) => {
 };
 
 // ==========================================
-// ROUTES
-// ==========================================
+// Health Check Endpoint for Render & UptimeRobot (Keeps free server awake 24/7)
+app.get(['/health', '/api/health'], (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        service: 'Dr. Shaikshavali Portfolio Backend',
+        uptime: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+        database: isMongoConnected ? 'connected' : 'local-resilient-cache'
+    });
+});
+
+app.head(['/health', '/api/health'], (req, res) => {
+    res.status(200).end();
+});
 
 // Server & Storage Status
 app.get('/api/status', (req, res) => {
@@ -766,6 +782,17 @@ app.put('/api/portfolio', verifyAuth, async (req, res) => {
     }
 });
 
+// Health check route for UptimeRobot / ping monitoring
+app.get(['/health', '/api/health'], (req, res) => {
+    res.json({
+        status: 'healthy',
+        service: 'Dr. Dudekula Shaikshavali Portfolio Backend',
+        uptime: Math.round(process.uptime()),
+        database: isMongoConnected ? 'connected' : 'local-cache',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Image / File Upload
 app.post('/api/upload', verifyAuth, upload.single('file'), (req, res) => {
     try {
@@ -774,10 +801,21 @@ app.post('/api/upload', verifyAuth, upload.single('file'), (req, res) => {
         }
 
         const fileUrl = `/uploads/${req.file.filename}`;
+        
+        // Generate Base64 Data URI for Render ephemeral persistence
+        let persistentUrl = fileUrl;
+        try {
+            const buffer = fs.readFileSync(req.file.path);
+            persistentUrl = `data:${req.file.mimetype};base64,${buffer.toString('base64')}`;
+        } catch (e) {
+            console.warn('Could not read buffer for dataUri:', e.message);
+        }
+
         res.json({
             success: true,
             message: 'File uploaded successfully',
-            url: fileUrl,
+            url: persistentUrl,
+            localUrl: fileUrl,
             filename: req.file.filename,
             size: req.file.size,
             mimetype: req.file.mimetype
