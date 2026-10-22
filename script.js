@@ -1,17 +1,21 @@
 /* ========================================================
-   Dr. Ganesh Kumar M — Portfolio JavaScript
-   Premium Light Theme — Smooth interactions & animations
+   Dr. Dudekula Shaikshavali — Dynamic Portfolio JavaScript
+   Integrated with MongoDB Atlas, Image Uploads & Admin Studio
    ======================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ---- Navbar Scroll Effect ----
+    // Global Portfolio State
+    let portfolioData = null;
+    let isQuickEditActive = false;
+    let typewriterTimeout = null;
+
+    // ---- Core UI: Navbar Scroll Effect ----
     const navbar = document.getElementById('navbar');
     const backToTop = document.getElementById('backToTop');
 
     function handleNavScroll() {
         const scrollY = window.scrollY;
-
         if (scrollY > 60) {
             navbar.classList.add('scrolled');
         } else {
@@ -32,18 +36,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const navToggle = document.getElementById('navToggle');
     const navMenu = document.getElementById('navMenu');
 
-    navToggle.addEventListener('click', () => {
-        navToggle.classList.toggle('active');
-        navMenu.classList.toggle('active');
-    });
-
-    // Close mobile menu on link click
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', () => {
-            navToggle.classList.remove('active');
-            navMenu.classList.remove('active');
+    if (navToggle && navMenu) {
+        navToggle.addEventListener('click', () => {
+            navToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
         });
-    });
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                navToggle.classList.remove('active');
+                navMenu.classList.remove('active');
+            });
+        });
+    }
 
     // ---- Active Navigation Link ----
     const sections = document.querySelectorAll('section[id]');
@@ -73,96 +78,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('scroll', updateActiveNav, { passive: true });
 
-    // ---- Scroll Reveal Animation (Staggered) ----
-    const revealElements = document.querySelectorAll('[data-reveal]');
-
-    const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry, index) => {
-            if (entry.isIntersecting) {
-                setTimeout(() => {
-                    entry.target.classList.add('revealed');
-                }, index * 80);
-                revealObserver.unobserve(entry.target);
-            }
+    // ---- Scroll Reveal Animation ----
+    function initScrollReveal() {
+        const revealElements = document.querySelectorAll('[data-reveal]');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('revealed');
+                    }, index * 60);
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -30px 0px'
         });
-    }, {
-        threshold: 0.12,
-        rootMargin: '0px 0px -40px 0px'
-    });
 
-    revealElements.forEach(el => revealObserver.observe(el));
-
-    // ---- Animated Counters (Smooth easeOutCubic) ----
-    const counterElements = document.querySelectorAll('[data-target]');
-
-    function animateCounter(element) {
-        const target = parseInt(element.getAttribute('data-target'));
-        const duration = 2200;
-        const startTime = performance.now();
-
-        function updateCounter(currentTime) {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-
-            // Smooth ease-out cubic
-            const easeOut = 1 - Math.pow(1 - progress, 3);
-            const currentValue = Math.floor(target * easeOut);
-
-            element.textContent = currentValue;
-
-            if (progress < 1) {
-                requestAnimationFrame(updateCounter);
-            } else {
-                element.textContent = target;
-            }
-        }
-
-        requestAnimationFrame(updateCounter);
+        revealElements.forEach(el => revealObserver.observe(el));
     }
+    initScrollReveal();
 
-    const counterObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                animateCounter(entry.target);
-                counterObserver.unobserve(entry.target);
-            }
-        });
-    }, {
-        threshold: 0.5
-    });
+    // ---- Animated Counters ----
+    function initCounters() {
+        const counterElements = document.querySelectorAll('[data-target]');
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const element = entry.target;
+                    const target = parseInt(element.getAttribute('data-target')) || 0;
+                    const duration = 2000;
+                    const startTime = performance.now();
 
-    counterElements.forEach(el => counterObserver.observe(el));
+                    function updateCounter(currentTime) {
+                        const elapsed = currentTime - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const easeOut = 1 - Math.pow(1 - progress, 3);
+                        element.textContent = Math.floor(target * easeOut);
 
-    // ---- Typing Effect ----
+                        if (progress < 1) {
+                            requestAnimationFrame(updateCounter);
+                        } else {
+                            element.textContent = target;
+                        }
+                    }
+
+                    requestAnimationFrame(updateCounter);
+                    counterObserver.unobserve(element);
+                }
+            });
+        }, { threshold: 0.4 });
+
+        counterElements.forEach(el => counterObserver.observe(el));
+    }
+    initCounters();
+
+    // ---- Typewriter Effect ----
     const typedTextElement = document.getElementById('typedText');
-    const phrases = [
+    let phrases = [
         'an Assistant Professor',
         'a VLSI Expert',
         'a Semiconductor Device Physicist',
         'a Microwave Engineering Researcher',
         'a Ph.D. in VLSI Domain'
     ];
-
     let phraseIndex = 0;
     let charIndex = 0;
     let isDeleting = false;
-    let typingSpeed = 60;
 
-    function typeEffect() {
-        const currentPhrase = phrases[phraseIndex];
+    function runTypeEffect() {
+        if (!typedTextElement) return;
+        const currentPhrase = phrases[phraseIndex] || '';
 
         if (isDeleting) {
             typedTextElement.textContent = currentPhrase.substring(0, charIndex - 1);
             charIndex--;
-            typingSpeed = 30;
         } else {
             typedTextElement.textContent = currentPhrase.substring(0, charIndex + 1);
             charIndex++;
-            typingSpeed = 60;
         }
 
+        let typingSpeed = isDeleting ? 35 : 65;
+
         if (!isDeleting && charIndex === currentPhrase.length) {
-            typingSpeed = 2500;
+            typingSpeed = 2400;
             isDeleting = true;
         } else if (isDeleting && charIndex === 0) {
             isDeleting = false;
@@ -170,20 +169,20 @@ document.addEventListener('DOMContentLoaded', () => {
             typingSpeed = 400;
         }
 
-        setTimeout(typeEffect, typingSpeed);
+        if (typewriterTimeout) clearTimeout(typewriterTimeout);
+        typewriterTimeout = setTimeout(runTypeEffect, typingSpeed);
     }
+    runTypeEffect();
 
-    setTimeout(typeEffect, 1000);
-
-    // ---- Smooth Scroll for Anchor Links ----
+    // ---- Smooth Anchor Scroll ----
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function(e) {
-            e.preventDefault();
             const targetId = this.getAttribute('href');
+            if (targetId === '#' || !targetId) return;
             const targetElement = document.querySelector(targetId);
-
             if (targetElement) {
-                const offsetTop = targetElement.offsetTop - 80;
+                e.preventDefault();
+                const offsetTop = targetElement.offsetTop - 75;
                 window.scrollTo({
                     top: offsetTop,
                     behavior: 'smooth'
@@ -192,18 +191,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ---- Contact Form (Visual Feedback Only) ----
+    // ---- Contact Form Visual Handler ----
     const contactForm = document.getElementById('contactForm');
-
     if (contactForm) {
         contactForm.addEventListener('submit', function(e) {
             e.preventDefault();
-
             const btn = this.querySelector('button[type="submit"]');
             const originalContent = btn.innerHTML;
-
             btn.innerHTML = '<i class="fas fa-check"></i> Message Sent!';
-            btn.style.background = '#1a8f4e';
+            btn.style.background = '#10b981';
 
             setTimeout(() => {
                 btn.innerHTML = originalContent;
@@ -213,154 +209,427 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---- Parallax Effect for Hero Orbs ----
-    const heroSection = document.querySelector('.hero');
+    // ========================================================
+    // TOAST NOTIFICATION UTILITY
+    // ========================================================
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('adminToastContainer');
+        if (!container) return;
 
-    if (heroSection) {
-        window.addEventListener('mousemove', (e) => {
-            const orbs = document.querySelectorAll('.gradient-orb');
-            const x = (e.clientX / window.innerWidth - 0.5) * 2;
-            const y = (e.clientY / window.innerHeight - 0.5) * 2;
+        const toast = document.createElement('div');
+        toast.className = `admin-toast ${type === 'error' ? 'toast-error' : 'toast-success'}`;
+        const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
+        toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+        container.appendChild(toast);
 
-            orbs.forEach((orb, index) => {
-                const speed = (index + 1) * 8;
-                orb.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
-            });
-        }, { passive: true });
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
     }
 
-    // ---- Card Hover Lift Effect ----
-    const cards = document.querySelectorAll('.project-card, .award-card, .metric-card, .exp-card, .contact-card');
+    // ========================================================
+    // DATA FETCHING & DYNAMIC RENDERING
+    // ========================================================
+    async function fetchPortfolio() {
+        try {
+            const res = await fetch('/api/portfolio');
+            const json = await res.json();
+            if (json.success && json.data) {
+                portfolioData = json.data;
+                renderPortfolio(portfolioData);
+            }
+        } catch (err) {
+            console.warn('Backend server not connected or loading local files:', err.message);
+        }
+    }
 
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', () => {
-            card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-        });
+    function renderPortfolio(data) {
+        if (!data) return;
 
-        card.addEventListener('mouseleave', () => {
-            card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-        });
-    });
+        // 1. Hero
+        if (data.hero) {
+            const heroName = document.getElementById('heroName');
+            const heroBadgeText = document.getElementById('heroBadgeText');
+            const statPubs = document.getElementById('statPubs');
+            const statPatents = document.getElementById('statPatents');
+            const statExp = document.getElementById('statExp');
+            const resumeBtn = document.getElementById('resumeBtn');
 
-    // ---- Show More Publications ----
-    const showMorePubsBtn = document.getElementById('showMorePubs');
-    if (showMorePubsBtn) {
-        let currentlyVisible = 4;
-        const pubsToRevealPerClick = 4;
+            if (heroName && data.hero.name) heroName.textContent = data.hero.name;
+            if (heroBadgeText && data.hero.badge) heroBadgeText.textContent = data.hero.badge;
 
-        showMorePubsBtn.addEventListener('click', () => {
-            const pubs = document.querySelectorAll('.pub-item');
-            let newlyVisible = 0;
+            if (data.hero.typedPhrases && data.hero.typedPhrases.length > 0) {
+                phrases = data.hero.typedPhrases;
+                phraseIndex = 0;
+                charIndex = 0;
+                isDeleting = false;
+            }
 
-            for (let i = currentlyVisible; i < pubs.length; i++) {
-                if (newlyVisible < pubsToRevealPerClick) {
-                    pubs[i].style.display = 'flex';
-                    pubs[i].classList.remove('pub-hidden');
-
-                    // Animate in with a stagger
-                    pubs[i].style.opacity = '0';
-                    pubs[i].style.transform = 'translateY(20px)';
-                    setTimeout(() => {
-                        pubs[i].style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                        pubs[i].style.opacity = '1';
-                        pubs[i].style.transform = 'translateY(0)';
-                    }, newlyVisible * 100);
-
-                    newlyVisible++;
+            if (data.hero.stats) {
+                if (statPubs) {
+                    statPubs.setAttribute('data-target', data.hero.stats.publications || 0);
+                    statPubs.textContent = data.hero.stats.publications || 0;
+                }
+                if (statPatents) {
+                    statPatents.setAttribute('data-target', data.hero.stats.patents || 0);
+                    statPatents.textContent = data.hero.stats.patents || 0;
+                }
+                if (statExp) {
+                    statExp.setAttribute('data-target', data.hero.stats.experience || 0);
+                    statExp.textContent = data.hero.stats.experience || 0;
                 }
             }
 
-            currentlyVisible += newlyVisible;
-
-            if (currentlyVisible >= pubs.length) {
-                showMorePubsBtn.style.display = 'none';
+            if (resumeBtn && data.hero.resumeUrl) {
+                resumeBtn.href = data.hero.resumeUrl;
             }
-        });
+        }
+
+        // 2. About Section & Photo
+        if (data.about) {
+            const profileImg = document.getElementById('profileImg');
+            const aboutBadge = document.getElementById('aboutBadge');
+            const aboutRole = document.getElementById('aboutRole');
+            const aboutInstitution = document.getElementById('aboutInstitution');
+            const aboutBio = document.getElementById('aboutBio');
+            const aboutPhd = document.getElementById('aboutPhd');
+            const aboutMtech = document.getElementById('aboutMtech');
+            const aboutEmail = document.getElementById('aboutEmail');
+            const aboutPhone = document.getElementById('aboutPhone');
+            const aboutDob = document.getElementById('aboutDob');
+            const aboutLanguages = document.getElementById('aboutLanguages');
+            const competenciesContainer = document.getElementById('competenciesContainer');
+
+            if (profileImg && data.about.image) {
+                profileImg.src = data.about.image;
+            }
+            if (aboutBadge && data.about.badge) {
+                aboutBadge.innerHTML = `<i class="fas fa-award"></i> ${data.about.badge}`;
+            }
+            if (aboutRole && data.about.role) aboutRole.textContent = data.about.role;
+            if (aboutInstitution && data.about.institution) {
+                aboutInstitution.innerHTML = `<i class="fas fa-university"></i> ${data.about.institution}`;
+            }
+            if (aboutBio && data.about.bio) aboutBio.textContent = data.about.bio;
+
+            if (data.about.details) {
+                if (aboutPhd && data.about.details.phd) aboutPhd.textContent = data.about.details.phd;
+                if (aboutMtech && data.about.details.mtech) aboutMtech.textContent = data.about.details.mtech;
+                if (aboutEmail && data.about.details.email) aboutEmail.textContent = data.about.details.email;
+                if (aboutPhone && data.about.details.phone) aboutPhone.textContent = data.about.details.phone;
+                if (aboutDob && data.about.details.dob) aboutDob.textContent = data.about.details.dob;
+                if (aboutLanguages && data.about.details.languages) aboutLanguages.textContent = data.about.details.languages;
+            }
+
+            if (competenciesContainer && data.about.competencies && data.about.competencies.length > 0) {
+                competenciesContainer.innerHTML = data.about.competencies
+                    .map(item => `<span class="research-tag">${item}</span>`)
+                    .join('');
+            }
+        }
+
+        // 3. Education Timeline
+        if (data.education && Array.isArray(data.education) && data.education.length > 0) {
+            const educationTimeline = document.getElementById('educationTimeline');
+            if (educationTimeline) {
+                educationTimeline.innerHTML = data.education.map(edu => `
+                    <div class="timeline-item">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-badge">${edu.period || ''}</div>
+                            <h4>${edu.degree || ''}</h4>
+                            <p class="timeline-org"><i class="fas fa-university"></i> ${edu.institution || ''}</p>
+                            ${edu.thesis ? `<p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-secondary);">
+                                <strong>Thesis:</strong> ${edu.thesis}<br>
+                                ${edu.fields ? `<strong>Fields:</strong> ${edu.fields}<br>` : ''}
+                                ${edu.grade ? `<strong>Grade:</strong> ${edu.grade}` : ''}
+                            </p>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 4. Experience Grid
+        if (data.experience && Array.isArray(data.experience) && data.experience.length > 0) {
+            const experienceGrid = document.getElementById('experienceGrid');
+            if (experienceGrid) {
+                experienceGrid.innerHTML = data.experience.map(exp => `
+                    <div class="exp-card ${exp.isCurrent ? 'exp-current' : ''}">
+                        <div class="exp-period">
+                            <span class="exp-year">${exp.period || ''}</span>
+                            ${exp.isCurrent ? '<span class="exp-badge-current">Current</span>' : ''}
+                        </div>
+                        <div class="exp-content">
+                            <h4>${exp.role || ''}</h4>
+                            <p class="exp-org"><i class="fas fa-building-columns"></i> ${exp.organization || ''}</p>
+                            ${exp.highlights && exp.highlights.length > 0 ? `
+                                <ul class="exp-highlights" style="margin-top: 10px;">
+                                    ${exp.highlights.map(h => `<li>${h}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 5. Publications Grid
+        if (data.publications && Array.isArray(data.publications) && data.publications.length > 0) {
+            const publicationsGrid = document.getElementById('publicationsGrid');
+            if (publicationsGrid) {
+                publicationsGrid.innerHTML = data.publications.map(pub => `
+                    <div class="project-card">
+                        <div class="project-icon"><i class="fas fa-book-open"></i></div>
+                        <span class="project-status published">${pub.status || 'PUBLISHED'}</span>
+                        <h4>${pub.title || ''}</h4>
+                        <div class="project-meta" style="margin-top: 15px;">
+                            <div class="project-meta-item">
+                                <i class="fas fa-newspaper"></i>
+                                <span>${pub.journal || ''}</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${pub.year || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 6. Conferences Grid
+        if (data.conferences && Array.isArray(data.conferences) && data.conferences.length > 0) {
+            const conferencesGrid = document.getElementById('conferencesGrid');
+            if (conferencesGrid) {
+                conferencesGrid.innerHTML = data.conferences.map(conf => `
+                    <div class="project-card">
+                        <div class="project-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        <span class="project-status published">${conf.status || 'PRESENTED'}</span>
+                        <h4>${conf.title || ''}</h4>
+                        <div class="project-subtitle" style="margin-top: 10px; margin-bottom: 15px;">
+                            ${conf.event || ''}
+                        </div>
+                        <div class="project-meta">
+                            <div class="project-meta-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>${conf.location || ''}</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${conf.dates || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 7. Book Chapters Grid
+        if (data.bookChapters && Array.isArray(data.bookChapters) && data.bookChapters.length > 0) {
+            const bookChaptersGrid = document.getElementById('bookChaptersGrid');
+            if (bookChaptersGrid) {
+                bookChaptersGrid.innerHTML = data.bookChapters.map(book => `
+                    <div class="project-card">
+                        <div class="project-icon"><i class="fas fa-book"></i></div>
+                        <span class="project-status published">${book.status || 'PUBLISHED'}</span>
+                        <h4>${book.title || ''}</h4>
+                        <div class="project-subtitle" style="margin-top: 10px; margin-bottom: 15px;">
+                            ${book.details || ''}
+                        </div>
+                        <div class="project-meta">
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${book.date || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 8. Patents Grid
+        if (data.patents && Array.isArray(data.patents) && data.patents.length > 0) {
+            const patentsGrid = document.getElementById('patentsGrid');
+            if (patentsGrid) {
+                patentsGrid.innerHTML = data.patents.map(pat => `
+                    <div class="project-card">
+                        <div class="project-icon"><i class="fas fa-certificate"></i></div>
+                        <span class="project-status completed">${pat.status || 'FILED'}</span>
+                        <h4>${pat.title || ''}</h4>
+                        <div class="project-meta" style="margin-top: 15px;">
+                            <div class="project-meta-item">
+                                <i class="fas fa-globe"></i>
+                                <span>${pat.country || ''}</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${pat.date || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 9. Funded Projects Grid
+        if (data.fundedProjects && Array.isArray(data.fundedProjects) && data.fundedProjects.length > 0) {
+            const fundedProjectsGrid = document.getElementById('fundedProjectsGrid');
+            if (fundedProjectsGrid) {
+                fundedProjectsGrid.innerHTML = data.fundedProjects.map(proj => `
+                    <div class="project-card">
+                        <div class="project-icon"><i class="fas fa-flask"></i></div>
+                        <span class="project-status ongoing">${proj.status || 'ONGOING'}</span>
+                        <h4>${proj.title || ''}</h4>
+                        <div class="project-subtitle" style="margin-top: 15px; margin-bottom: 15px;">
+                            ${proj.description || ''}
+                        </div>
+                        <div class="project-meta">
+                            <div class="project-meta-item">
+                                <i class="fas fa-university"></i>
+                                <span>${proj.agency || ''}</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-rupee-sign"></i>
+                                <span>${proj.amount || ''}</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${proj.period || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 10. Activities (Organisational, Memberships, Workshops, Certifications)
+        if (data.activities) {
+            const organisationalList = document.getElementById('organisationalList');
+            const membershipsGrid = document.getElementById('membershipsGrid');
+            const workshopsList = document.getElementById('workshopsList');
+            const certificationsGrid = document.getElementById('certificationsGrid');
+
+            if (organisationalList && data.activities.organisational) {
+                organisationalList.innerHTML = data.activities.organisational.map(item => `
+                    <li style="margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-check-circle" style="color: var(--accent-secondary); margin-top: 5px;"></i>
+                        <span>${item}</span>
+                    </li>
+                `).join('');
+            }
+
+            if (membershipsGrid && data.activities.memberships) {
+                membershipsGrid.innerHTML = data.activities.memberships.map(item => `
+                    <div class="course-chip"><i class="fas fa-award"></i> ${item}</div>
+                `).join('');
+            }
+
+            if (workshopsList && data.activities.workshops) {
+                workshopsList.innerHTML = data.activities.workshops.map(ws => `
+                    <li style="margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-calendar-check" style="color: var(--accent-secondary); margin-top: 5px;"></i>
+                        <div>
+                            <strong>${ws.title || ''}</strong><br>
+                            <span style="font-size: 0.85rem; color: var(--text-secondary);">${ws.institution || ''} | ${ws.dates || ''}</span>
+                        </div>
+                    </li>
+                `).join('');
+            }
+
+            if (certificationsGrid && data.activities.certifications) {
+                certificationsGrid.innerHTML = data.activities.certifications.map(c => `
+                    <div class="course-chip"><i class="fas fa-medal"></i> ${c}</div>
+                `).join('');
+            }
+        }
+
+        // 11. Contact & Socials
+        if (data.contact) {
+            const contactLocationText = document.getElementById('contactLocationText');
+            const contactEmailLink = document.getElementById('contactEmailLink');
+            const contactPhoneLink = document.getElementById('contactPhoneLink');
+            const footerLinkedIn = document.getElementById('footerLinkedIn');
+            const footerScholar = document.getElementById('footerScholar');
+            const footerEmail = document.getElementById('footerEmail');
+
+            if (contactLocationText && data.contact.location) contactLocationText.textContent = data.contact.location;
+            if (contactEmailLink && data.contact.email) {
+                contactEmailLink.textContent = data.contact.email;
+                contactEmailLink.href = `mailto:${data.contact.email}`;
+            }
+            if (contactPhoneLink && data.contact.phone) {
+                contactPhoneLink.textContent = data.contact.phone;
+                contactPhoneLink.href = `tel:${data.contact.phone.replace(/[^0-9+]/g, '')}`;
+            }
+            if (footerLinkedIn && data.contact.linkedin) footerLinkedIn.href = data.contact.linkedin;
+            if (footerScholar && data.contact.scholar) footerScholar.href = data.contact.scholar;
+            if (footerEmail && data.contact.email) footerEmail.href = `mailto:${data.contact.email}`;
+        }
+
+        // If quick edit mode was on, re-apply section shortcuts
+        if (isQuickEditActive) {
+            attachSectionEditButtons();
+        }
     }
 
-    // ---- Admin Functionality ----
+    // ========================================================
+    // ADMIN AUTHENTICATION & BAR
+    // ========================================================
+    const adminFloatingBar = document.getElementById('adminFloatingBar');
+    const adminLoginTrigger = document.getElementById('adminLoginTrigger');
+    const adminLoginModal = document.getElementById('adminLoginModal');
+    const closeLoginModalBtn = document.getElementById('closeLoginModalBtn');
     const adminLoginForm = document.getElementById('adminLoginForm');
-    const adminPanel = document.getElementById('adminPanel');
-    const saveBtn = document.getElementById('saveChangesBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
     const loginError = document.getElementById('loginError');
-    const adminLoginSection = document.getElementById('adminLoginSection');
-    
-    let isAdmin = localStorage.getItem('adminToken') !== null;
+    const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+    const changePhotoBtn = document.getElementById('changePhotoBtn');
 
-    function enableEditMode() {
-        if(adminPanel) adminPanel.style.display = 'flex';
-        if(adminLoginSection) adminLoginSection.style.display = 'none';
-        
-        // Make text elements editable
-        const editableTags = document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6, main p:not(.typed-text), main span:not(.fas):not(.fab):not(.bx):not(.typed-cursor):not(.stat-number):not(.section-tag), main strong, main li');
-        
-        editableTags.forEach(el => {
-            el.setAttribute('contenteditable', 'true');
-            // Remove links default behavior when editing
-            if(el.tagName.toLowerCase() === 'a' || el.closest('a')) {
-                el.addEventListener('click', e => e.preventDefault());
-            }
-        });
+    function checkAdminAuth() {
+        return !!localStorage.getItem('adminToken');
+    }
 
-        // Add +/- buttons to blocks
-        const blockItems = document.querySelectorAll('.timeline-item, .exp-card, .project-card, .about-content-col li');
-        blockItems.forEach(item => {
-            if (!item.querySelector('.admin-item-actions')) {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'admin-item-actions';
-                actionsDiv.innerHTML = `
-                    <button class="admin-add-btn" title="Duplicate Block"><i class="fas fa-plus"></i></button>
-                    <button class="admin-remove-btn" title="Remove Block"><i class="fas fa-minus"></i></button>
-                `;
-                item.appendChild(actionsDiv);
+    function updateAdminUI() {
+        const isAdmin = checkAdminAuth();
+        if (isAdmin) {
+            if (adminFloatingBar) adminFloatingBar.style.display = 'flex';
+            if (adminLoginTrigger) adminLoginTrigger.style.display = 'none';
+            if (changePhotoBtn) changePhotoBtn.style.display = 'flex';
+        } else {
+            if (adminFloatingBar) adminFloatingBar.style.display = 'none';
+            if (adminLoginTrigger) adminLoginTrigger.style.display = 'flex';
+            if (changePhotoBtn) changePhotoBtn.style.display = 'none';
+            disableQuickEdit();
+        }
+    }
 
-                actionsDiv.querySelector('.admin-add-btn').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const clone = item.cloneNode(true);
-                    // Remove old actions div from clone to avoid duplicate events
-                    const cloneActions = clone.querySelector('.admin-item-actions');
-                    if (cloneActions) cloneActions.remove();
-                    item.parentNode.insertBefore(clone, item.nextSibling);
-                    // Re-run enableEditMode to attach events to new clone
-                    enableEditMode();
-                });
-
-                actionsDiv.querySelector('.admin-remove-btn').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (confirm('Are you sure you want to remove this block?')) {
-                        item.remove();
-                    }
-                });
-            }
+    // Trigger Login Modal
+    if (adminLoginTrigger) {
+        adminLoginTrigger.addEventListener('click', () => {
+            if (adminLoginModal) adminLoginModal.classList.add('active');
         });
     }
 
-    function disableEditMode() {
-        if(adminPanel) adminPanel.style.display = 'none';
-        if(adminLoginSection) adminLoginSection.style.display = 'block';
-        
-        const editableTags = document.querySelectorAll('[contenteditable="true"]');
-        editableTags.forEach(el => {
-            el.removeAttribute('contenteditable');
+    if (closeLoginModalBtn) {
+        closeLoginModalBtn.addEventListener('click', () => {
+            if (adminLoginModal) adminLoginModal.classList.remove('active');
         });
-
-        const actionsDivs = document.querySelectorAll('.admin-item-actions');
-        actionsDivs.forEach(el => el.remove());
     }
 
-    if (isAdmin) {
-        enableEditMode();
-    }
-
+    // Login Form Submit
     if (adminLoginForm) {
         adminLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('adminUser').value;
-            const password = document.getElementById('adminPass').value;
-            
+            const username = document.getElementById('adminUser').value.trim();
+            const password = document.getElementById('adminPass').value.trim();
+            const submitBtn = document.getElementById('loginSubmitBtn');
+            const origText = submitBtn.innerHTML;
+
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
+
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
@@ -368,68 +637,1153 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
-                
-                if (data.success) {
+
+                if (data.success && data.token) {
                     localStorage.setItem('adminToken', data.token);
-                    if(loginError) loginError.style.display = 'none';
-                    enableEditMode();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (loginError) loginError.style.display = 'none';
+                    if (adminLoginModal) adminLoginModal.classList.remove('active');
+                    updateAdminUI();
+                    showToast('Welcome Dr. Shaikshavali! Admin Studio is now active.');
                 } else {
-                    if(loginError) loginError.style.display = 'block';
+                    if (loginError) {
+                        loginError.textContent = data.message || 'Invalid credentials';
+                        loginError.style.display = 'block';
+                    }
                 }
             } catch (err) {
-                console.error(err);
-                if(loginError) {
-                    loginError.textContent = 'Server not running. Start server.js first.';
+                if (loginError) {
+                    loginError.textContent = 'Server offline. Run node server.js first.';
                     loginError.style.display = 'block';
                 }
+            } finally {
+                submitBtn.innerHTML = origText;
             }
         });
     }
 
-    if (saveBtn) {
-        saveBtn.addEventListener('click', async () => {
-            const originalText = saveBtn.innerHTML;
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            
-            const mainClone = document.getElementById('main').cloneNode(true);
-            mainClone.querySelectorAll('.admin-item-actions').forEach(el => el.remove());
-            mainClone.querySelectorAll('[contenteditable="true"]').forEach(el => {
-                el.removeAttribute('contenteditable');
-            });
-            const htmlToSave = mainClone.innerHTML;
-            
+    // Logout
+    if (adminLogoutBtn) {
+        adminLogoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            updateAdminUI();
+            showToast('You have logged out of Admin mode.');
+        });
+    }
+
+    // ========================================================
+    // DIRECT PROFILE PHOTO UPLOAD (CAMERA OVERLAY)
+    // ========================================================
+    const directPhotoFileInput = document.getElementById('directPhotoFileInput');
+
+    if (changePhotoBtn && directPhotoFileInput) {
+        changePhotoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            directPhotoFileInput.click();
+        });
+
+        directPhotoFileInput.addEventListener('change', async () => {
+            const file = directPhotoFileInput.files[0];
+            if (!file) return;
+
+            showToast('Uploading profile picture to MongoDB...', 'success');
+            const token = localStorage.getItem('adminToken');
+            const formData = new FormData();
+            formData.append('file', file);
+
             try {
-                const res = await fetch('/api/save', {
+                const res = await fetch('/api/upload', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: localStorage.getItem('adminToken'),
-                        mainContent: htmlToSave
-                    })
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
                 });
-                const data = await res.json();
-                if (data.success) {
-                    saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-                    setTimeout(() => saveBtn.innerHTML = originalText, 2000);
+                const json = await res.json();
+
+                if (json.success && json.url) {
+                    const profileImg = document.getElementById('profileImg');
+                    if (profileImg) profileImg.src = json.url;
+
+                    if (!portfolioData) portfolioData = {};
+                    if (!portfolioData.about) portfolioData.about = {};
+                    portfolioData.about.image = json.url;
+
+                    // Automatically save updated image to MongoDB
+                    await savePortfolioData(false);
+                    showToast('Profile photo updated & saved to MongoDB Atlas!');
                 } else {
-                    alert('Error saving: ' + data.message);
-                    saveBtn.innerHTML = originalText;
+                    showToast(json.message || 'Upload failed', 'error');
                 }
             } catch (err) {
-                console.error(err);
-                alert('Error saving. Server not running.');
-                saveBtn.innerHTML = originalText;
+                showToast('Upload failed: ' + err.message, 'error');
             }
         });
     }
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('adminToken');
-            disableEditMode();
-            window.location.reload();
+    // ========================================================
+    // ADMIN STUDIO DASHBOARD MODAL
+    // ========================================================
+    const adminStudioModal = document.getElementById('adminStudioModal');
+    const openStudioBtn = document.getElementById('openStudioBtn');
+    const closeStudioModalBtn = document.getElementById('closeStudioModalBtn');
+    const closeStudioFooterBtn = document.getElementById('closeStudioFooterBtn');
+    const studioSaveBtn = document.getElementById('studioSaveBtn');
+    const saveStudioFooterBtn = document.getElementById('saveStudioFooterBtn');
+    const quickSaveBtn = document.getElementById('quickSaveBtn');
+
+    function openStudio(targetTabId = 'tab-hero') {
+        if (!adminStudioModal) return;
+        populateStudioInputs();
+        switchStudioTab(targetTabId);
+        fetchGalleryImages();
+        adminStudioModal.classList.add('active');
+    }
+
+    function closeStudio() {
+        if (adminStudioModal) adminStudioModal.classList.remove('active');
+    }
+
+    if (openStudioBtn) openStudioBtn.addEventListener('click', () => openStudio('tab-hero'));
+    if (closeStudioModalBtn) closeStudioModalBtn.addEventListener('click', closeStudio);
+    if (closeStudioFooterBtn) closeStudioFooterBtn.addEventListener('click', closeStudio);
+
+    // Tab Switching
+    function switchStudioTab(tabId) {
+        document.querySelectorAll('.studio-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+        });
+        document.querySelectorAll('.studio-tab-pane').forEach(pane => {
+            pane.classList.toggle('active', pane.getAttribute('id') === tabId);
         });
     }
+
+    document.querySelectorAll('.studio-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.getAttribute('data-tab');
+            switchStudioTab(tabId);
+        });
+    });
+
+    // Populate Studio Inputs from current state
+    function populateStudioInputs() {
+        if (!portfolioData) return;
+
+        // Hero
+        if (portfolioData.hero) {
+            setInputValue('inputHeroName', portfolioData.hero.name);
+            setInputValue('inputHeroBadge', portfolioData.hero.badge);
+            setInputValue('inputTypedPhrases', (portfolioData.hero.typedPhrases || []).join('\n'));
+            if (portfolioData.hero.stats) {
+                setInputValue('inputStatPubs', portfolioData.hero.stats.publications);
+                setInputValue('inputStatPatents', portfolioData.hero.stats.patents);
+                setInputValue('inputStatExp', portfolioData.hero.stats.experience);
+            }
+            setInputValue('inputResumeUrl', portfolioData.hero.resumeUrl);
+        }
+
+        // Media & About
+        if (portfolioData.about) {
+            const studioProfilePreview = document.getElementById('studioProfilePreview');
+            const currentImageLabel = document.getElementById('currentImageLabel');
+            if (studioProfilePreview && portfolioData.about.image) {
+                studioProfilePreview.src = portfolioData.about.image;
+            }
+            if (currentImageLabel && portfolioData.about.image) {
+                currentImageLabel.textContent = portfolioData.about.image;
+            }
+
+            setInputValue('inputAboutRole', portfolioData.about.role);
+            setInputValue('inputAboutInstitution', portfolioData.about.institution);
+            setInputValue('inputAboutBadge', portfolioData.about.badge);
+            setInputValue('inputAboutBio', portfolioData.about.bio);
+
+            if (portfolioData.about.details) {
+                setInputValue('inputAboutPhd', portfolioData.about.details.phd);
+                setInputValue('inputAboutMtech', portfolioData.about.details.mtech);
+                setInputValue('inputAboutEmail', portfolioData.about.details.email);
+                setInputValue('inputAboutPhone', portfolioData.about.details.phone);
+                setInputValue('inputAboutDob', portfolioData.about.details.dob);
+                setInputValue('inputAboutLanguages', portfolioData.about.details.languages);
+            }
+
+            renderStudioTags();
+        }
+
+        // Render dynamic list items
+        renderStudioEducationList();
+        renderStudioExperienceList();
+        renderStudioPublicationsList();
+        renderStudioConferencesList();
+        renderStudioBookChaptersList();
+        renderStudioPatentsList();
+        renderStudioProjectsList();
+
+        // Activities
+        if (portfolioData.activities) {
+            setInputValue('inputOrganisational', (portfolioData.activities.organisational || []).join('\n'));
+            setInputValue('inputMemberships', (portfolioData.activities.memberships || []).join('\n'));
+            setInputValue('inputCertifications', (portfolioData.activities.certifications || []).join('\n'));
+        }
+
+        // Contact
+        if (portfolioData.contact) {
+            setInputValue('inputContactLocation', portfolioData.contact.location);
+            setInputValue('inputContactEmail', portfolioData.contact.email);
+            setInputValue('inputContactPhone', portfolioData.contact.phone);
+            setInputValue('inputContactLinkedIn', portfolioData.contact.linkedin);
+            setInputValue('inputContactScholar', portfolioData.contact.scholar);
+        }
+    }
+
+    function setInputValue(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.value = val !== undefined && val !== null ? val : '';
+    }
+
+    function getInputValue(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    }
+
+    // ========================================================
+    // STUDIO MEDIA & PHOTO UPLOADER
+    // ========================================================
+    const photoDropzone = document.getElementById('photoDropzone');
+    const choosePhotoFileBtn = document.getElementById('choosePhotoFileBtn');
+    const applyImageUrlBtn = document.getElementById('applyImageUrlBtn');
+    const inputCustomImageUrl = document.getElementById('inputCustomImageUrl');
+    const uploadResumeBtn = document.getElementById('uploadResumeBtn');
+    const directResumeFileInput = document.getElementById('directResumeFileInput');
+    const refreshGalleryBtn = document.getElementById('refreshGalleryBtn');
+
+    if (choosePhotoFileBtn && directPhotoFileInput) {
+        choosePhotoFileBtn.addEventListener('click', () => directPhotoFileInput.click());
+    }
+
+    if (photoDropzone && directPhotoFileInput) {
+        photoDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            photoDropzone.classList.add('drag-over');
+        });
+        photoDropzone.addEventListener('dragleave', () => {
+            photoDropzone.classList.remove('drag-over');
+        });
+        photoDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            photoDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                directPhotoFileInput.files = e.dataTransfer.files;
+                directPhotoFileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    if (applyImageUrlBtn && inputCustomImageUrl) {
+        applyImageUrlBtn.addEventListener('click', () => {
+            const url = inputCustomImageUrl.value.trim();
+            if (!url) return;
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.about) portfolioData.about = {};
+            portfolioData.about.image = url;
+
+            const studioProfilePreview = document.getElementById('studioProfilePreview');
+            const profileImg = document.getElementById('profileImg');
+            if (studioProfilePreview) studioProfilePreview.src = url;
+            if (profileImg) profileImg.src = url;
+
+            showToast('Custom image URL applied to profile photo!');
+        });
+    }
+
+    // Resume PDF Upload in Studio
+    if (uploadResumeBtn && directResumeFileInput) {
+        uploadResumeBtn.addEventListener('click', () => directResumeFileInput.click());
+
+        directResumeFileInput.addEventListener('change', async () => {
+            const file = directResumeFileInput.files[0];
+            if (!file) return;
+
+            showToast('Uploading resume PDF...', 'success');
+            const token = localStorage.getItem('adminToken');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const json = await res.json();
+                if (json.success && json.url) {
+                    setInputValue('inputResumeUrl', json.url);
+                    if (!portfolioData) portfolioData = {};
+                    if (!portfolioData.hero) portfolioData.hero = {};
+                    portfolioData.hero.resumeUrl = json.url;
+
+                    const resumeBtn = document.getElementById('resumeBtn');
+                    if (resumeBtn) resumeBtn.href = json.url;
+
+                    showToast('Resume uploaded successfully!');
+                } else {
+                    showToast(json.message || 'PDF upload failed', 'error');
+                }
+            } catch (err) {
+                showToast('PDF upload failed: ' + err.message, 'error');
+            }
+        });
+    }
+
+    // Fetch and render uploaded media gallery
+    async function fetchGalleryImages() {
+        const grid = document.getElementById('studioGalleryGrid');
+        if (!grid) return;
+
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
+        try {
+            const res = await fetch('/api/images', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (data.success && Array.isArray(data.files) && data.files.length > 0) {
+                grid.innerHTML = data.files.map(img => `
+                    <div class="gallery-item-card" title="${img.filename} (${img.size})">
+                        <img src="${img.url}" alt="${img.filename}">
+                        <div class="gallery-item-actions">
+                            <button class="gallery-action-btn btn-use-profile" data-url="${img.url}" title="Set as Profile Photo">
+                                <i class="fas fa-user-circle"></i>
+                            </button>
+                            <button class="gallery-action-btn btn-copy-link" data-url="${img.url}" title="Copy Link">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <button class="gallery-action-btn btn-delete" data-filename="${img.filename}" title="Delete File">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Action Listeners
+                grid.querySelectorAll('.btn-use-profile').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = btn.getAttribute('data-url');
+                        if (!portfolioData) portfolioData = {};
+                        if (!portfolioData.about) portfolioData.about = {};
+                        portfolioData.about.image = url;
+
+                        const studioProfilePreview = document.getElementById('studioProfilePreview');
+                        const profileImg = document.getElementById('profileImg');
+                        if (studioProfilePreview) studioProfilePreview.src = url;
+                        if (profileImg) profileImg.src = url;
+
+                        showToast('Profile photo set from gallery!');
+                    });
+                });
+
+                grid.querySelectorAll('.btn-copy-link').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = window.location.origin + btn.getAttribute('data-url');
+                        navigator.clipboard.writeText(url);
+                        showToast('Image URL copied to clipboard!');
+                    });
+                });
+
+                grid.querySelectorAll('.btn-delete').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const filename = btn.getAttribute('data-filename');
+                        if (!confirm(`Delete ${filename}?`)) return;
+
+                        try {
+                            const delRes = await fetch(`/api/images/${filename}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const delJson = await delRes.json();
+                            if (delJson.success) {
+                                showToast('File deleted.');
+                                fetchGalleryImages();
+                            }
+                        } catch (err) {
+                            showToast('Error deleting file: ' + err.message, 'error');
+                        }
+                    });
+                });
+
+            } else {
+                grid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1 / -1;">No uploaded media yet. Upload photos using the dropzone above.</p>';
+            }
+        } catch (err) {
+            console.warn('Error fetching gallery:', err);
+        }
+    }
+
+    if (refreshGalleryBtn) {
+        refreshGalleryBtn.addEventListener('click', fetchGalleryImages);
+    }
+
+    // ========================================================
+    // COMPETENCIES / SKILLS TAG EDITOR
+    // ========================================================
+    function renderStudioTags() {
+        const container = document.getElementById('studioTagsContainer');
+        if (!container || !portfolioData || !portfolioData.about) return;
+        const tags = portfolioData.about.competencies || [];
+
+        container.innerHTML = tags.map((tag, idx) => `
+            <span class="tag-badge-editable">
+                <span>${tag}</span>
+                <i class="fas fa-times tag-remove-x" data-index="${idx}"></i>
+            </span>
+        `).join('');
+
+        container.querySelectorAll('.tag-remove-x').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(btn.getAttribute('data-index'));
+                portfolioData.about.competencies.splice(idx, 1);
+                renderStudioTags();
+            });
+        });
+    }
+
+    const addNewTagBtn = document.getElementById('addNewTagBtn');
+    const inputNewTag = document.getElementById('inputNewTag');
+
+    if (addNewTagBtn && inputNewTag) {
+        addNewTagBtn.addEventListener('click', () => {
+            const val = inputNewTag.value.trim();
+            if (!val) return;
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.about) portfolioData.about = {};
+            if (!portfolioData.about.competencies) portfolioData.about.competencies = [];
+
+            portfolioData.about.competencies.push(val);
+            inputNewTag.value = '';
+            renderStudioTags();
+        });
+
+        inputNewTag.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewTagBtn.click();
+            }
+        });
+    }
+
+    // ========================================================
+    // ITEM LIST RENDERERS & ADD BUTTONS IN STUDIO
+    // ========================================================
+
+    // 1. Education
+    function renderStudioEducationList() {
+        const list = document.getElementById('studioEducationList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.education || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.degree || 'Degree'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">${item.period || ''} — ${item.institution || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="education" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Degree</label>
+                        <input type="text" class="edu-field-degree" data-index="${idx}" value="${item.degree || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Institution</label>
+                        <input type="text" class="edu-field-inst" data-index="${idx}" value="${item.institution || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Period</label>
+                        <input type="text" class="edu-field-period" data-index="${idx}" value="${item.period || ''}">
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-top: 10px; margin-bottom: 0;">
+                    <label>Thesis / Research Title</label>
+                    <input type="text" class="edu-field-thesis" data-index="${idx}" value="${item.thesis || ''}">
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('education', list);
+    }
+
+    const addEducationBtn = document.getElementById('addEducationBtn');
+    if (addEducationBtn) {
+        addEducationBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.education) portfolioData.education = [];
+            portfolioData.education.unshift({
+                degree: 'New Degree / Specialization',
+                institution: 'University / Institute Name',
+                period: '2024 – 2026',
+                thesis: '',
+                fields: '',
+                grade: ''
+            });
+            renderStudioEducationList();
+        });
+    }
+
+    // 2. Experience
+    function renderStudioExperienceList() {
+        const list = document.getElementById('studioExperienceList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.experience || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.role || 'Role'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">${item.period || ''} — ${item.organization || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="experience" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Role</label>
+                        <input type="text" class="exp-field-role" data-index="${idx}" value="${item.role || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Organization / University</label>
+                        <input type="text" class="exp-field-org" data-index="${idx}" value="${item.organization || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Duration / Period</label>
+                        <input type="text" class="exp-field-period" data-index="${idx}" value="${item.period || ''}">
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-top: 10px; margin-bottom: 0;">
+                    <label>Bullet Highlights (one per line)</label>
+                    <textarea class="exp-field-highlights" data-index="${idx}" rows="2">${(item.highlights || []).join('\n')}</textarea>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('experience', list);
+    }
+
+    const addExperienceBtn = document.getElementById('addExperienceBtn');
+    if (addExperienceBtn) {
+        addExperienceBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.experience) portfolioData.experience = [];
+            portfolioData.experience.unshift({
+                role: 'Assistant Professor',
+                organization: 'Institution Name',
+                period: '2026 - Present',
+                isCurrent: false,
+                highlights: ['Teaching courses and conducting research']
+            });
+            renderStudioExperienceList();
+        });
+    }
+
+    // 3. Publications
+    function renderStudioPublicationsList() {
+        const list = document.getElementById('studioPublicationsList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.publications || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.title || 'Paper Title'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">${item.year || ''} — ${item.journal || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="publications" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-bottom: 10px;">
+                    <label>Paper Title</label>
+                    <input type="text" class="pub-field-title" data-index="${idx}" value="${item.title || ''}">
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Journal / Publisher</label>
+                        <input type="text" class="pub-field-journal" data-index="${idx}" value="${item.journal || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Publication Year</label>
+                        <input type="text" class="pub-field-year" data-index="${idx}" value="${item.year || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Status (e.g. PUBLISHED)</label>
+                        <input type="text" class="pub-field-status" data-index="${idx}" value="${item.status || 'PUBLISHED'}">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('publications', list);
+    }
+
+    const addPublicationBtn = document.getElementById('addPublicationBtn');
+    if (addPublicationBtn) {
+        addPublicationBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.publications) portfolioData.publications = [];
+            portfolioData.publications.unshift({
+                title: 'New Research Paper Title',
+                journal: 'Journal Name [SCIE / Scopus]',
+                year: new Date().getFullYear().toString(),
+                indexing: 'SCIE',
+                status: 'PUBLISHED'
+            });
+            renderStudioPublicationsList();
+        });
+    }
+
+    // 4. Conferences & Books
+    function renderStudioConferencesList() {
+        const list = document.getElementById('studioConferencesList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.conferences || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.title || 'Conference Presentation'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary);">${item.dates || ''} — ${item.location || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="conferences" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-bottom: 10px;">
+                    <label>Paper / Presentation Title</label>
+                    <input type="text" class="conf-field-title" data-index="${idx}" value="${item.title || ''}">
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Conference Event Name</label>
+                        <input type="text" class="conf-field-event" data-index="${idx}" value="${item.event || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Location</label>
+                        <input type="text" class="conf-field-location" data-index="${idx}" value="${item.location || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Dates</label>
+                        <input type="text" class="conf-field-dates" data-index="${idx}" value="${item.dates || ''}">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('conferences', list);
+    }
+
+    const addConferenceBtn = document.getElementById('addConferenceBtn');
+    if (addConferenceBtn) {
+        addConferenceBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.conferences) portfolioData.conferences = [];
+            portfolioData.conferences.unshift({
+                title: 'New Conference Presentation Title',
+                event: 'International Conference Name',
+                location: 'City, Country',
+                dates: '2026',
+                status: 'PRESENTED'
+            });
+            renderStudioConferencesList();
+        });
+    }
+
+    function renderStudioBookChaptersList() {
+        const list = document.getElementById('studioBookChaptersList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.bookChapters || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.title || 'Book Chapter'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary);">${item.date || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="bookChapters" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-bottom: 10px;">
+                    <label>Chapter Title</label>
+                    <input type="text" class="book-field-title" data-index="${idx}" value="${item.title || ''}">
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Publisher & ISBN Details</label>
+                        <input type="text" class="book-field-details" data-index="${idx}" value="${item.details || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Publication Date</label>
+                        <input type="text" class="book-field-date" data-index="${idx}" value="${item.date || ''}">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('bookChapters', list);
+    }
+
+    const addBookChapterBtn = document.getElementById('addBookChapterBtn');
+    if (addBookChapterBtn) {
+        addBookChapterBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.bookChapters) portfolioData.bookChapters = [];
+            portfolioData.bookChapters.unshift({
+                title: 'New Book Chapter Title',
+                details: 'ISBN Details, Publishing House',
+                date: '2026',
+                status: 'PUBLISHED'
+            });
+            renderStudioBookChaptersList();
+        });
+    }
+
+    // 5. Patents & Projects
+    function renderStudioPatentsList() {
+        const list = document.getElementById('studioPatentsList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.patents || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.title || 'Patent Title'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">${item.status || 'FILED'} — ${item.country || ''} (${item.date || ''})</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="patents" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-bottom: 10px;">
+                    <label>Invention / Patent Title</label>
+                    <input type="text" class="pat-field-title" data-index="${idx}" value="${item.title || ''}">
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Country / Jurisdiction</label>
+                        <input type="text" class="pat-field-country" data-index="${idx}" value="${item.country || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Status (FILED / GRANTED)</label>
+                        <input type="text" class="pat-field-status" data-index="${idx}" value="${item.status || 'FILED'}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Year / Date</label>
+                        <input type="text" class="pat-field-date" data-index="${idx}" value="${item.date || ''}">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('patents', list);
+    }
+
+    const addPatentBtn = document.getElementById('addPatentBtn');
+    if (addPatentBtn) {
+        addPatentBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.patents) portfolioData.patents = [];
+            portfolioData.patents.unshift({
+                title: 'New Patent Title',
+                country: 'India',
+                status: 'FILED',
+                date: '2026'
+            });
+            renderStudioPatentsList();
+        });
+    }
+
+    function renderStudioProjectsList() {
+        const list = document.getElementById('studioProjectsList');
+        if (!list || !portfolioData) return;
+        const items = portfolioData.fundedProjects || [];
+
+        list.innerHTML = items.map((item, idx) => `
+            <div class="admin-card-item">
+                <div class="admin-card-header">
+                    <div>
+                        <h5>${item.title || 'Project Title'}</h5>
+                        <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">${item.amount || ''} — ${item.agency || ''}</span>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="admin-card-btn delete-btn" data-type="fundedProjects" data-index="${idx}" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-bottom: 10px;">
+                    <label>Funded Project Title</label>
+                    <input type="text" class="proj-field-title" data-index="${idx}" value="${item.title || ''}">
+                </div>
+                <div class="admin-form-row">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Funding Agency</label>
+                        <input type="text" class="proj-field-agency" data-index="${idx}" value="${item.agency || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Grant Amount</label>
+                        <input type="text" class="proj-field-amount" data-index="${idx}" value="${item.amount || ''}">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Period</label>
+                        <input type="text" class="proj-field-period" data-index="${idx}" value="${item.period || ''}">
+                    </div>
+                </div>
+                <div class="admin-field" style="margin-top: 10px; margin-bottom: 0;">
+                    <label>Project Description</label>
+                    <textarea class="proj-field-desc" data-index="${idx}" rows="2">${item.description || ''}</textarea>
+                </div>
+            </div>
+        `).join('');
+
+        attachItemInputListeners('fundedProjects', list);
+    }
+
+    const addProjectBtn = document.getElementById('addProjectBtn');
+    if (addProjectBtn) {
+        addProjectBtn.addEventListener('click', () => {
+            if (!portfolioData) portfolioData = {};
+            if (!portfolioData.fundedProjects) portfolioData.fundedProjects = [];
+            portfolioData.fundedProjects.unshift({
+                title: 'New Funded Project Title',
+                agency: 'Funding Agency Name',
+                amount: '₹ 50,000',
+                period: '2026 - Current',
+                description: 'Brief description of project research goals',
+                status: 'ONGOING'
+            });
+            renderStudioProjectsList();
+        });
+    }
+
+    // Helper: attach listeners for input updates and deletes
+    function attachItemInputListeners(type, container) {
+        // Delete buttons
+        container.querySelectorAll(`.delete-btn[data-type="${type}"]`).forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-index'));
+                if (portfolioData && portfolioData[type]) {
+                    portfolioData[type].splice(idx, 1);
+                    if (type === 'education') renderStudioEducationList();
+                    if (type === 'experience') renderStudioExperienceList();
+                    if (type === 'publications') renderStudioPublicationsList();
+                    if (type === 'conferences') renderStudioConferencesList();
+                    if (type === 'bookChapters') renderStudioBookChaptersList();
+                    if (type === 'patents') renderStudioPatentsList();
+                    if (type === 'fundedProjects') renderStudioProjectsList();
+                }
+            });
+        });
+
+        // Field change updates
+        container.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('input', () => {
+                const idx = parseInt(input.getAttribute('data-index'));
+                if (!portfolioData || !portfolioData[type] || !portfolioData[type][idx]) return;
+                const item = portfolioData[type][idx];
+
+                if (type === 'education') {
+                    if (input.classList.contains('edu-field-degree')) item.degree = input.value;
+                    if (input.classList.contains('edu-field-inst')) item.institution = input.value;
+                    if (input.classList.contains('edu-field-period')) item.period = input.value;
+                    if (input.classList.contains('edu-field-thesis')) item.thesis = input.value;
+                } else if (type === 'experience') {
+                    if (input.classList.contains('exp-field-role')) item.role = input.value;
+                    if (input.classList.contains('exp-field-org')) item.organization = input.value;
+                    if (input.classList.contains('exp-field-period')) item.period = input.value;
+                    if (input.classList.contains('exp-field-highlights')) item.highlights = input.value.split('\n').filter(Boolean);
+                } else if (type === 'publications') {
+                    if (input.classList.contains('pub-field-title')) item.title = input.value;
+                    if (input.classList.contains('pub-field-journal')) item.journal = input.value;
+                    if (input.classList.contains('pub-field-year')) item.year = input.value;
+                    if (input.classList.contains('pub-field-status')) item.status = input.value;
+                } else if (type === 'conferences') {
+                    if (input.classList.contains('conf-field-title')) item.title = input.value;
+                    if (input.classList.contains('conf-field-event')) item.event = input.value;
+                    if (input.classList.contains('conf-field-location')) item.location = input.value;
+                    if (input.classList.contains('conf-field-dates')) item.dates = input.value;
+                } else if (type === 'bookChapters') {
+                    if (input.classList.contains('book-field-title')) item.title = input.value;
+                    if (input.classList.contains('book-field-details')) item.details = input.value;
+                    if (input.classList.contains('book-field-date')) item.date = input.value;
+                } else if (type === 'patents') {
+                    if (input.classList.contains('pat-field-title')) item.title = input.value;
+                    if (input.classList.contains('pat-field-country')) item.country = input.value;
+                    if (input.classList.contains('pat-field-status')) item.status = input.value;
+                    if (input.classList.contains('pat-field-date')) item.date = input.value;
+                } else if (type === 'fundedProjects') {
+                    if (input.classList.contains('proj-field-title')) item.title = input.value;
+                    if (input.classList.contains('proj-field-agency')) item.agency = input.value;
+                    if (input.classList.contains('proj-field-amount')) item.amount = input.value;
+                    if (input.classList.contains('proj-field-period')) item.period = input.value;
+                    if (input.classList.contains('proj-field-desc')) item.description = input.value;
+                }
+            });
+        });
+    }
+
+    // ========================================================
+    // SAVE TO MONGODB ATLAS
+    // ========================================================
+    async function collectStudioFormData() {
+        if (!portfolioData) portfolioData = {};
+
+        // Hero
+        if (!portfolioData.hero) portfolioData.hero = {};
+        portfolioData.hero.name = getInputValue('inputHeroName');
+        portfolioData.hero.badge = getInputValue('inputHeroBadge');
+        portfolioData.hero.typedPhrases = getInputValue('inputTypedPhrases').split('\n').map(s => s.trim()).filter(Boolean);
+        if (!portfolioData.hero.stats) portfolioData.hero.stats = {};
+        portfolioData.hero.stats.publications = parseInt(getInputValue('inputStatPubs')) || 0;
+        portfolioData.hero.stats.patents = parseInt(getInputValue('inputStatPatents')) || 0;
+        portfolioData.hero.stats.experience = parseInt(getInputValue('inputStatExp')) || 0;
+        portfolioData.hero.resumeUrl = getInputValue('inputResumeUrl') || 'Shaik_July2026_CV-6.pdf';
+
+        // About
+        if (!portfolioData.about) portfolioData.about = {};
+        portfolioData.about.role = getInputValue('inputAboutRole');
+        portfolioData.about.institution = getInputValue('inputAboutInstitution');
+        portfolioData.about.badge = getInputValue('inputAboutBadge');
+        portfolioData.about.bio = getInputValue('inputAboutBio');
+        if (!portfolioData.about.details) portfolioData.about.details = {};
+        portfolioData.about.details.phd = getInputValue('inputAboutPhd');
+        portfolioData.about.details.mtech = getInputValue('inputAboutMtech');
+        portfolioData.about.details.email = getInputValue('inputAboutEmail');
+        portfolioData.about.details.phone = getInputValue('inputAboutPhone');
+        portfolioData.about.details.dob = getInputValue('inputAboutDob');
+        portfolioData.about.details.languages = getInputValue('inputAboutLanguages');
+
+        // Activities
+        if (!portfolioData.activities) portfolioData.activities = {};
+        portfolioData.activities.organisational = getInputValue('inputOrganisational').split('\n').map(s => s.trim()).filter(Boolean);
+        portfolioData.activities.memberships = getInputValue('inputMemberships').split('\n').map(s => s.trim()).filter(Boolean);
+        portfolioData.activities.certifications = getInputValue('inputCertifications').split('\n').map(s => s.trim()).filter(Boolean);
+
+        // Contact
+        if (!portfolioData.contact) portfolioData.contact = {};
+        portfolioData.contact.location = getInputValue('inputContactLocation');
+        portfolioData.contact.email = getInputValue('inputContactEmail');
+        portfolioData.contact.phone = getInputValue('inputContactPhone');
+        portfolioData.contact.linkedin = getInputValue('inputContactLinkedIn');
+        portfolioData.contact.scholar = getInputValue('inputContactScholar');
+
+        return portfolioData;
+    }
+
+    async function savePortfolioData(showUserToast = true) {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            showToast('You must be logged in to save changes.', 'error');
+            return false;
+        }
+
+        const dataToSave = await collectStudioFormData();
+
+        try {
+            const res = await fetch('/api/portfolio', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ data: dataToSave })
+            });
+            const json = await res.json();
+
+            if (json.success) {
+                renderPortfolio(dataToSave);
+                if (showUserToast) {
+                    showToast('Portfolio details saved to MongoDB Atlas successfully!');
+                }
+                return true;
+            } else {
+                showToast(json.message || 'Error saving to database', 'error');
+                return false;
+            }
+        } catch (err) {
+            showToast('Save failed: ' + err.message, 'error');
+            return false;
+        }
+    }
+
+    if (studioSaveBtn) {
+        studioSaveBtn.addEventListener('click', async () => {
+            const orig = studioSaveBtn.innerHTML;
+            studioSaveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            await savePortfolioData(true);
+            studioSaveBtn.innerHTML = orig;
+        });
+    }
+
+    if (saveStudioFooterBtn) {
+        saveStudioFooterBtn.addEventListener('click', async () => {
+            const orig = saveStudioFooterBtn.innerHTML;
+            saveStudioFooterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            await savePortfolioData(true);
+            saveStudioFooterBtn.innerHTML = orig;
+        });
+    }
+
+    if (quickSaveBtn) {
+        quickSaveBtn.addEventListener('click', async () => {
+            const orig = quickSaveBtn.innerHTML;
+            quickSaveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            await savePortfolioData(true);
+            quickSaveBtn.innerHTML = orig;
+        });
+    }
+
+    // ========================================================
+    // VISUAL QUICK-EDIT (IN-PAGE SHORTCUTS)
+    // ========================================================
+    const toggleInlineEditBtn = document.getElementById('toggleInlineEditBtn');
+    const inlineEditStatus = document.getElementById('inlineEditStatus');
+
+    function attachSectionEditButtons() {
+        const sectionMap = [
+            { id: 'hero', tab: 'tab-hero', title: 'Edit Hero' },
+            { id: 'about', tab: 'tab-about', title: 'Edit About' },
+            { id: 'education', tab: 'tab-education', title: 'Edit Education' },
+            { id: 'experience', tab: 'tab-experience', title: 'Edit Experience' },
+            { id: 'publications', tab: 'tab-publications', title: 'Edit Publications' },
+            { id: 'conferences', tab: 'tab-conferences', title: 'Edit Conferences' },
+            { id: 'projects', tab: 'tab-patents', title: 'Edit Patents/Projects' },
+            { id: 'activities', tab: 'tab-activities', title: 'Edit Activities' },
+            { id: 'contact', tab: 'tab-contact', title: 'Edit Contact' }
+        ];
+
+        sectionMap.forEach(sec => {
+            const el = document.getElementById(sec.id);
+            if (!el) return;
+            const header = el.querySelector('.section-title, .hero-title');
+            if (header && !header.querySelector('.section-edit-btn')) {
+                const btn = document.createElement('button');
+                btn.className = 'section-edit-btn';
+                btn.innerHTML = `<i class="fas fa-pencil-alt"></i> ${sec.title}`;
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openStudio(sec.tab);
+                });
+                header.appendChild(btn);
+            }
+        });
+    }
+
+    function removeSectionEditButtons() {
+        document.querySelectorAll('.section-edit-btn').forEach(btn => btn.remove());
+    }
+
+    function enableQuickEdit() {
+        isQuickEditActive = true;
+        if (inlineEditStatus) inlineEditStatus.textContent = 'Quick Edit: ON';
+        if (toggleInlineEditBtn) toggleInlineEditBtn.classList.add('admin-btn-gold');
+        attachSectionEditButtons();
+        showToast('Quick edit mode enabled! Click edit shortcuts on sections.');
+    }
+
+    function disableQuickEdit() {
+        isQuickEditActive = false;
+        if (inlineEditStatus) inlineEditStatus.textContent = 'Quick Edit: OFF';
+        if (toggleInlineEditBtn) toggleInlineEditBtn.classList.remove('admin-btn-gold');
+        removeSectionEditButtons();
+    }
+
+    if (toggleInlineEditBtn) {
+        toggleInlineEditBtn.addEventListener('click', () => {
+            if (isQuickEditActive) {
+                disableQuickEdit();
+            } else {
+                enableQuickEdit();
+            }
+        });
+    }
+
+    // ========================================================
+    // PASSWORD UPDATE & RESET TO DEFAULTS
+    // ========================================================
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    const inputNewPassword = document.getElementById('inputNewPassword');
+
+    if (changePasswordBtn && inputNewPassword) {
+        changePasswordBtn.addEventListener('click', async () => {
+            const newPassword = inputNewPassword.value.trim();
+            if (newPassword.length < 4) {
+                showToast('Password must be at least 4 characters long.', 'error');
+                return;
+            }
+
+            const token = localStorage.getItem('adminToken');
+            try {
+                const res = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ newPassword })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast('Admin password updated successfully!');
+                    inputNewPassword.value = '';
+                } else {
+                    showToast(json.message || 'Error updating password', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to change password: ' + err.message, 'error');
+            }
+        });
+    }
+
+    const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+    if (resetDefaultsBtn) {
+        resetDefaultsBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to reset all portfolio data to default? Any unsaved edits will be lost.')) {
+                return;
+            }
+
+            const token = localStorage.getItem('adminToken');
+            try {
+                const res = await fetch('/api/reset-portfolio', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const json = await res.json();
+                if (json.success) {
+                    portfolioData = json.data;
+                    renderPortfolio(portfolioData);
+                    populateStudioInputs();
+                    showToast('Portfolio reset to default data.');
+                }
+            } catch (err) {
+                showToast('Error resetting data: ' + err.message, 'error');
+            }
+        });
+    }
+
+    // Initialize Page
+    updateAdminUI();
+    fetchPortfolio();
 
 });
