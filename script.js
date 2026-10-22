@@ -608,6 +608,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (footerEmail && data.contact.email) footerEmail.href = `mailto:${data.contact.email}`;
         }
 
+        // 12. Academic & Campus Photo Gallery (Auto-Scrolling)
+        renderPublicGallery(data.gallery);
+
         // If quick edit mode was on, re-apply section shortcuts
         if (isQuickEditActive) {
             attachSectionEditButtons();
@@ -855,6 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderStudioBookChaptersList();
         renderStudioPatentsList();
         renderStudioProjectsList();
+        renderStudioGalleryList();
 
         // Activities
         if (portfolioData.activities) {
@@ -1695,6 +1699,384 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========================================================
+    // AUTO-SCROLLING PHOTO GALLERY & LIGHTBOX
+    // ========================================================
+    let currentGalleryList = [];
+    let currentLightboxIndex = 0;
+    let isGalleryPaused = false;
+
+    function renderPublicGallery(galleryItems) {
+        const track = document.getElementById('galleryTrack');
+        const countDisplay = document.getElementById('galleryCountDisplay');
+        if (!track) return;
+
+        currentGalleryList = Array.isArray(galleryItems) && galleryItems.length > 0 
+            ? galleryItems 
+            : [];
+
+        if (countDisplay) {
+            countDisplay.textContent = `${currentGalleryList.length} Moment${currentGalleryList.length === 1 ? '' : 's'}`;
+        }
+
+        if (currentGalleryList.length === 0) {
+            track.innerHTML = `
+                <div style="padding: 40px; color: var(--text-muted); text-align: center; width: 100%;">
+                    <i class="fas fa-camera-retro" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                    No gallery photos uploaded yet. Click "Manage Photos" to upload campus and conference moments.
+                </div>
+            `;
+            return;
+        }
+
+        function createCardHtml(item, index) {
+            const rawUrl = item.url || '';
+            const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('data:') 
+                ? rawUrl 
+                : `${getApiBaseUrl()}/${rawUrl.replace(/^\//, '')}`;
+
+            return `
+                <div class="gallery-card" data-gallery-index="${index}" title="Click to view ${item.title || 'photo'}">
+                    <img class="gallery-card-img" src="${fullUrl}" alt="${item.title || 'Gallery Moment'}" loading="lazy">
+                    <div class="gallery-card-overlay">
+                        <div class="gallery-card-header">
+                            <span class="gallery-tag-chip"><i class="fas fa-tag"></i> ${item.category || 'Academic'}</span>
+                            <div class="gallery-zoom-icon"><i class="fas fa-search-plus"></i></div>
+                        </div>
+                        <div class="gallery-card-info">
+                            <h4>${item.title || 'Academic Moment'}</h4>
+                            <p>${item.caption || item.date || ''}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Duplicate the list so the CSS infinite loop (-50%) is seamless
+        const repeatCount = currentGalleryList.length < 4 ? 4 : 2;
+        let trackHtml = '';
+        for (let r = 0; r < repeatCount; r++) {
+            trackHtml += currentGalleryList.map((item, idx) => createCardHtml(item, idx)).join('');
+        }
+        track.innerHTML = trackHtml;
+
+        // Attach click listener for Lightbox
+        track.querySelectorAll('.gallery-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const idx = parseInt(card.getAttribute('data-gallery-index'), 10);
+                openLightbox(idx);
+            });
+        });
+    }
+
+    // Public Gallery Controls: Play/Pause, Next, Prev
+    const galleryToggleAutoBtn = document.getElementById('galleryToggleAutoBtn');
+    const galleryPlayPauseIcon = document.getElementById('galleryPlayPauseIcon');
+    const galleryPrevBtn = document.getElementById('galleryPrevBtn');
+    const galleryNextBtn = document.getElementById('galleryNextBtn');
+    const galleryTrackEl = document.getElementById('galleryTrack');
+    const openUploadGalleryQuickBtn = document.getElementById('openUploadGalleryQuickBtn');
+
+    if (galleryToggleAutoBtn && galleryTrackEl) {
+        galleryToggleAutoBtn.addEventListener('click', () => {
+            isGalleryPaused = !isGalleryPaused;
+            galleryTrackEl.classList.toggle('is-paused', isGalleryPaused);
+            if (galleryPlayPauseIcon) {
+                galleryPlayPauseIcon.className = isGalleryPaused ? 'fas fa-play' : 'fas fa-pause';
+            }
+            showToast(isGalleryPaused ? 'Auto-scroll paused' : 'Auto-scroll resumed');
+        });
+    }
+
+    if (galleryPrevBtn && galleryTrackEl) {
+        galleryPrevBtn.addEventListener('click', () => {
+            const wrapper = document.getElementById('galleryMarqueeWrapper');
+            if (wrapper) wrapper.scrollBy({ left: -360, behavior: 'smooth' });
+        });
+    }
+
+    if (galleryNextBtn && galleryTrackEl) {
+        galleryNextBtn.addEventListener('click', () => {
+            const wrapper = document.getElementById('galleryMarqueeWrapper');
+            if (wrapper) wrapper.scrollBy({ left: 360, behavior: 'smooth' });
+        });
+    }
+
+    if (openUploadGalleryQuickBtn) {
+        openUploadGalleryQuickBtn.addEventListener('click', () => {
+            if (checkAdminAuth()) {
+                openStudio('tab-gallery-manager');
+            } else {
+                if (adminLoginModal) adminLoginModal.classList.add('active');
+            }
+        });
+    }
+
+    // Lightbox Modal Controls
+    const galleryLightboxModal = document.getElementById('galleryLightboxModal');
+    const lightboxCloseBtn = document.getElementById('lightboxCloseBtn');
+    const lightboxBackdrop = document.getElementById('lightboxBackdrop');
+    const lightboxPrevBtn = document.getElementById('lightboxPrevBtn');
+    const lightboxNextBtn = document.getElementById('lightboxNextBtn');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxTitle = document.getElementById('lightboxTitle');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxCategory = document.getElementById('lightboxCategory');
+    const lightboxDate = document.getElementById('lightboxDate');
+
+    function openLightbox(index) {
+        if (!currentGalleryList || currentGalleryList.length === 0) return;
+        currentLightboxIndex = (index + currentGalleryList.length) % currentGalleryList.length;
+        const item = currentGalleryList[currentLightboxIndex];
+        if (!item) return;
+
+        const rawUrl = item.url || '';
+        const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('data:') 
+            ? rawUrl 
+            : `${getApiBaseUrl()}/${rawUrl.replace(/^\//, '')}`;
+
+        if (lightboxImg) lightboxImg.src = fullUrl;
+        if (lightboxTitle) lightboxTitle.textContent = item.title || 'Academic Moment';
+        if (lightboxCaption) lightboxCaption.textContent = item.caption || '';
+        if (lightboxCategory) lightboxCategory.textContent = item.category || 'Gallery';
+        if (lightboxDate) lightboxDate.textContent = item.date || '';
+
+        if (galleryLightboxModal) galleryLightboxModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        if (galleryLightboxModal) galleryLightboxModal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    if (lightboxCloseBtn) lightboxCloseBtn.addEventListener('click', closeLightbox);
+    if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
+    if (lightboxPrevBtn) {
+        lightboxPrevBtn.addEventListener('click', () => openLightbox(currentLightboxIndex - 1));
+    }
+    if (lightboxNextBtn) {
+        lightboxNextBtn.addEventListener('click', () => openLightbox(currentLightboxIndex + 1));
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!galleryLightboxModal || !galleryLightboxModal.classList.contains('active')) return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') openLightbox(currentLightboxIndex - 1);
+        if (e.key === 'ArrowRight') openLightbox(currentLightboxIndex + 1);
+    });
+
+    // ========================================================
+    // ADMIN STUDIO: GALLERY MANAGER (Upload & Edit)
+    // ========================================================
+    const studioGalleryItemsList = document.getElementById('studioGalleryItemsList');
+    const studioGalleryItemCount = document.getElementById('studioGalleryItemCount');
+    const chooseGalleryFilesBtn = document.getElementById('chooseGalleryFilesBtn');
+    const galleryMultiFileInput = document.getElementById('galleryMultiFileInput');
+    const galleryUploadDropzone = document.getElementById('galleryUploadDropzone');
+    const addSinglePhotoToGalleryBtn = document.getElementById('addSinglePhotoToGalleryBtn');
+    const addNewGalleryPhotoBtn = document.getElementById('addNewGalleryPhotoBtn');
+
+    function renderStudioGalleryList() {
+        if (!studioGalleryItemsList) return;
+        if (!portfolioData) portfolioData = {};
+        if (!Array.isArray(portfolioData.gallery)) portfolioData.gallery = [];
+
+        const list = portfolioData.gallery;
+        if (studioGalleryItemCount) studioGalleryItemCount.textContent = list.length;
+
+        if (list.length === 0) {
+            studioGalleryItemsList.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; padding: 12px 0;">No gallery photos yet. Drag & drop images above or add a photo URL.</p>';
+            return;
+        }
+
+        studioGalleryItemsList.innerHTML = list.map((item, idx) => {
+            const rawUrl = item.url || '';
+            const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('data:') 
+                ? rawUrl 
+                : `${getApiBaseUrl()}/${rawUrl.replace(/^\//, '')}`;
+
+            return `
+                <div class="admin-gallery-item-row" data-index="${idx}">
+                    <div class="admin-gallery-item-thumb">
+                        <img src="${fullUrl}" alt="${item.title || 'Thumb'}">
+                    </div>
+                    <div class="admin-gallery-item-inputs">
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                            <input type="text" class="gal-field-title" data-index="${idx}" value="${item.title || ''}" placeholder="Photo Title">
+                            <input type="text" class="gal-field-cat" data-index="${idx}" value="${item.category || ''}" placeholder="Category Tag">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                            <input type="text" class="gal-field-caption" data-index="${idx}" value="${item.caption || ''}" placeholder="Caption / Description">
+                            <input type="text" class="gal-field-date" data-index="${idx}" value="${item.date || ''}" placeholder="Date / Event">
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <button type="button" class="admin-btn admin-btn-danger gal-btn-delete" data-index="${idx}" title="Delete Photo" style="padding: 6px 10px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach listeners for delete and edits
+        studioGalleryItemsList.querySelectorAll('.gal-btn-delete').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const idx = parseInt(btn.getAttribute('data-index'), 10);
+                if (confirm('Delete this photo from the gallery?')) {
+                    portfolioData.gallery.splice(idx, 1);
+                    renderStudioGalleryList();
+                    renderPublicGallery(portfolioData.gallery);
+                    await savePortfolioData(false);
+                    showToast('Photo removed from gallery.');
+                }
+            });
+        });
+
+        studioGalleryItemsList.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => {
+                const idx = parseInt(input.getAttribute('data-index'), 10);
+                if (!portfolioData.gallery[idx]) return;
+                const item = portfolioData.gallery[idx];
+
+                if (input.classList.contains('gal-field-title')) item.title = input.value;
+                if (input.classList.contains('gal-field-cat')) item.category = input.value;
+                if (input.classList.contains('gal-field-caption')) item.caption = input.value;
+                if (input.classList.contains('gal-field-date')) item.date = input.value;
+
+                renderPublicGallery(portfolioData.gallery);
+            });
+        });
+    }
+
+    // Multi-file upload for Gallery
+    async function handleGalleryFilesUpload(files) {
+        if (!files || files.length === 0) return;
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            showToast('You must be logged in to upload photos.', 'error');
+            return;
+        }
+
+        showToast(`Uploading ${files.length} photo(s) to gallery...`);
+        let uploadCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${getApiBaseUrl()}/api/upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const json = await res.json();
+
+                if (json.success && json.url) {
+                    if (!portfolioData) portfolioData = {};
+                    if (!Array.isArray(portfolioData.gallery)) portfolioData.gallery = [];
+
+                    const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+                    portfolioData.gallery.unshift({
+                        id: 'gal-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                        url: json.url,
+                        title: cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1),
+                        caption: 'Campus & Research Visual Moment',
+                        category: 'Campus',
+                        date: '2026'
+                    });
+                    uploadCount++;
+                }
+            } catch (err) {
+                console.error('Error uploading file:', file.name, err);
+            }
+        }
+
+        if (uploadCount > 0) {
+            renderStudioGalleryList();
+            renderPublicGallery(portfolioData.gallery);
+            await savePortfolioData(false);
+            showToast(`Successfully added ${uploadCount} photo(s) to the auto-scrolling gallery!`);
+        } else {
+            showToast('Upload failed. Please check backend connection.', 'error');
+        }
+    }
+
+    if (chooseGalleryFilesBtn && galleryMultiFileInput) {
+        chooseGalleryFilesBtn.addEventListener('click', () => galleryMultiFileInput.click());
+    }
+    if (addNewGalleryPhotoBtn && galleryMultiFileInput) {
+        addNewGalleryPhotoBtn.addEventListener('click', () => galleryMultiFileInput.click());
+    }
+
+    if (galleryMultiFileInput) {
+        galleryMultiFileInput.addEventListener('change', () => {
+            if (galleryMultiFileInput.files && galleryMultiFileInput.files.length > 0) {
+                handleGalleryFilesUpload(galleryMultiFileInput.files);
+            }
+        });
+    }
+
+    if (galleryUploadDropzone && galleryMultiFileInput) {
+        galleryUploadDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            galleryUploadDropzone.classList.add('drag-over');
+        });
+        galleryUploadDropzone.addEventListener('dragleave', () => {
+            galleryUploadDropzone.classList.remove('drag-over');
+        });
+        galleryUploadDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            galleryUploadDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleGalleryFilesUpload(e.dataTransfer.files);
+            }
+        });
+    }
+
+    // Add single photo via URL
+    if (addSinglePhotoToGalleryBtn) {
+        addSinglePhotoToGalleryBtn.addEventListener('click', async () => {
+            const url = getInputValue('newPhotoUrl');
+            if (!url) {
+                showToast('Please enter a photo URL or upload an image above.', 'error');
+                return;
+            }
+
+            const title = getInputValue('newPhotoTitle') || 'Campus Moment';
+            const category = getInputValue('newPhotoCategory') || 'Academic';
+            const date = getInputValue('newPhotoDate') || '2026';
+            const caption = getInputValue('newPhotoCaption') || '';
+
+            if (!portfolioData) portfolioData = {};
+            if (!Array.isArray(portfolioData.gallery)) portfolioData.gallery = [];
+
+            portfolioData.gallery.unshift({
+                id: 'gal-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                url,
+                title,
+                category,
+                date,
+                caption
+            });
+
+            // Clear input fields
+            setInputValue('newPhotoUrl', '');
+            setInputValue('newPhotoTitle', '');
+            setInputValue('newPhotoCategory', '');
+            setInputValue('newPhotoDate', '');
+            setInputValue('newPhotoCaption', '');
+
+            renderStudioGalleryList();
+            renderPublicGallery(portfolioData.gallery);
+            await savePortfolioData(false);
+            showToast('New photo added to the auto-scrolling gallery!');
+        });
+    }
+
+    // ========================================================
     // VISUAL QUICK-EDIT (IN-PAGE SHORTCUTS)
     // ========================================================
     const toggleInlineEditBtn = document.getElementById('toggleInlineEditBtn');
@@ -1710,6 +2092,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'conferences', tab: 'tab-conferences', title: 'Edit Conferences' },
             { id: 'projects', tab: 'tab-patents', title: 'Edit Patents/Projects' },
             { id: 'activities', tab: 'tab-activities', title: 'Edit Activities' },
+            { id: 'gallery', tab: 'tab-gallery-manager', title: 'Manage Gallery' },
             { id: 'contact', tab: 'tab-contact', title: 'Edit Contact' }
         ];
 

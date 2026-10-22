@@ -203,8 +203,12 @@ const PortfolioSchema = new mongoose.Schema({
         scholar: { type: String, default: 'https://scholar.google.com/citations?user=hOaphsYAAAAJ&hl=en' }
     },
     gallery: [{
+        id: String,
         url: String,
+        title: String,
         caption: String,
+        category: String,
+        date: String,
         uploadedAt: { type: Date, default: Date.now }
     }],
     updatedAt: { type: Date, default: Date.now }
@@ -547,7 +551,40 @@ const defaultPortfolioData = {
         linkedin: 'https://linkedin.com/in/shaik-sha-20b8781b5',
         scholar: 'https://scholar.google.com/citations?user=hOaphsYAAAAJ&hl=en'
     },
-    gallery: []
+    gallery: [
+        {
+            id: 'gal-1',
+            url: 'uploads/gallery_conference.jpg',
+            title: 'IEEE International Conference Presentation',
+            caption: 'Delivering keynote paper on FinFET VLSI and Nanoscale Semiconductor Devices',
+            category: 'Conference',
+            date: '2024 - 2025'
+        },
+        {
+            id: 'gal-2',
+            url: 'uploads/gallery_semiconductor_lab.jpg',
+            title: 'Cleanroom Nano-Device Fabrication Lab',
+            caption: 'Precision wafer inspection and optical microscope testing for next-generation nano-transistors',
+            category: 'Research Lab',
+            date: 'Ongoing'
+        },
+        {
+            id: 'gal-3',
+            url: 'uploads/gallery_workshop.jpg',
+            title: 'VLSI & Microwave Circuit Prototyping Workshop',
+            caption: 'Mentoring engineering students on circuit design, spectrum analysis, and oscilloscope verification',
+            category: 'Workshop',
+            date: 'QISCET Campus'
+        },
+        {
+            id: 'gal-4',
+            url: 'uploads/gallery_symposium.jpg',
+            title: 'Academic Excellence & Keynote Felicitation',
+            caption: 'Recognized at the Annual Academic Symposium for pioneering publications and research leadership',
+            category: 'Symposium',
+            date: 'Annual Awards'
+        }
+    ]
 };
 
 // ==========================================

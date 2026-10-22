@@ -38,6 +38,7 @@
                 <li><a href="#conferences" class="nav-link">Conferences</a></li>
                 <li><a href="#projects" class="nav-link">Patents & Projects</a></li>
                 <li><a href="#activities" class="nav-link">Activities</a></li>
+                <li><a href="#gallery" class="nav-link">Gallery</a></li>
                 <li><a href="#contact" class="nav-link">Contact</a></li>
             </ul>
             <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
@@ -778,6 +779,49 @@
             </div>
         </section>
 
+        <!-- ======= Photo Gallery (Auto-Scrolling Showcase) ======= -->
+        <section id="gallery" class="section gallery-section">
+            <div class="container">
+                <div class="section-header text-center" data-reveal>
+                    <span class="section-tag"><i class="fas fa-camera-retro"></i> Visual Moments</span>
+                    <h2 class="section-title">Academic & Campus Gallery</h2>
+                    <p class="section-description" style="max-width: 650px; margin: 0 auto;">
+                        Moments from IEEE international conferences, cleanroom semiconductor research, interactive university workshops, student mentorship, and academic symposiums.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Auto-Scrolling Infinite Marquee Carousel -->
+            <div class="gallery-marquee-container" id="galleryMarqueeWrapper">
+                <div class="gallery-track" id="galleryTrack">
+                    <!-- Populated dynamically via renderPortfolio() and duplicated for infinite scroll -->
+                </div>
+            </div>
+
+            <!-- Gallery Controls & Quick Admin Bar -->
+            <div class="container" style="margin-top: 20px;">
+                <div class="gallery-controls-bar">
+                    <div class="gallery-counter">
+                        <i class="fas fa-images"></i> <span id="galleryCountDisplay">4 Moments</span>
+                    </div>
+                    <div class="gallery-action-btns">
+                        <button type="button" class="gallery-ctrl-btn" id="galleryPrevBtn" title="Scroll Left" aria-label="Previous photos">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button type="button" class="gallery-ctrl-btn" id="galleryToggleAutoBtn" title="Pause / Resume Auto-scroll" aria-label="Pause Auto-scroll">
+                            <i class="fas fa-pause" id="galleryPlayPauseIcon"></i>
+                        </button>
+                        <button type="button" class="gallery-ctrl-btn" id="galleryNextBtn" title="Scroll Right" aria-label="Next photos">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button type="button" class="admin-btn admin-btn-gold" id="openUploadGalleryQuickBtn" style="padding: 6px 14px; font-size: 0.82rem; margin-left: 8px;">
+                            <i class="fas fa-cloud-upload-alt"></i> Manage Photos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ======= Contact Section ======= -->
         <section id="contact" class="section contact">
             <div class="container">
@@ -951,6 +995,7 @@
                     <button class="studio-tab-btn" data-tab="tab-conferences"><i class="fas fa-chalkboard-teacher"></i> Conferences & Books</button>
                     <button class="studio-tab-btn" data-tab="tab-patents"><i class="fas fa-certificate"></i> Patents & Projects</button>
                     <button class="studio-tab-btn" data-tab="tab-activities"><i class="fas fa-tasks"></i> Activities & Certs</button>
+                    <button class="studio-tab-btn" data-tab="tab-gallery-manager"><i class="fas fa-images"></i> Photo Gallery</button>
                     <button class="studio-tab-btn" data-tab="tab-contact"><i class="fas fa-address-book"></i> Contact & Social</button>
                     <button class="studio-tab-btn" data-tab="tab-settings"><i class="fas fa-key"></i> Admin Security</button>
                 </nav>
@@ -1285,7 +1330,78 @@
                         </div>
                     </div>
 
-                    <!-- TAB 11: SECURITY & SETTINGS -->
+                    <!-- TAB 11: AUTO-SCROLLING PHOTO GALLERY MANAGER -->
+                    <div class="studio-tab-pane" id="tab-gallery-manager">
+                        <div class="tab-pane-header">
+                            <div>
+                                <h4>Auto-Scrolling Gallery Manager</h4>
+                                <p>Upload new photos, edit captions, and manage the auto-scrolling showcase</p>
+                            </div>
+                            <button type="button" id="addNewGalleryPhotoBtn" class="admin-btn admin-btn-gold">
+                                <i class="fas fa-upload"></i> Upload Photos
+                            </button>
+                        </div>
+
+                        <!-- Gallery Multi-file Upload Dropzone -->
+                        <div class="image-uploader-card" id="galleryUploadDropzone" style="margin-bottom: 24px;">
+                            <div class="upload-icon-circle">
+                                <i class="fas fa-images"></i>
+                            </div>
+                            <h5 style="margin: 0 0 6px 0; font-size: 1.05rem;">Drag & drop gallery photos here or click to browse</h5>
+                            <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">Upload single or multiple photos (JPG, PNG, WEBP). Photos will automatically appear in the auto-scrolling gallery.</p>
+                            <button type="button" class="admin-btn admin-btn-primary" style="margin-top: 14px;" id="chooseGalleryFilesBtn">
+                                <i class="fas fa-folder-open"></i> Select Photo Files
+                            </button>
+                            <input type="file" id="galleryMultiFileInput" accept="image/*" multiple style="display: none;">
+                        </div>
+
+                        <!-- Quick Add via URL or Custom Entry -->
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 20px; margin-bottom: 28px;">
+                            <h5 style="margin: 0 0 14px 0; font-size: 0.95rem; color: var(--accent-primary);">
+                                <i class="fas fa-plus-circle"></i> Add Single Photo with Details
+                            </h5>
+                            <div class="admin-form-row">
+                                <div class="admin-field">
+                                    <label>Photo URL (or upload above)</label>
+                                    <input type="text" id="newPhotoUrl" placeholder="uploads/myphoto.jpg or https://...">
+                                </div>
+                                <div class="admin-field">
+                                    <label>Category Tag</label>
+                                    <input type="text" id="newPhotoCategory" placeholder="e.g. Conference, Lab, Workshop, Campus">
+                                </div>
+                            </div>
+                            <div class="admin-form-row">
+                                <div class="admin-field">
+                                    <label>Photo Title</label>
+                                    <input type="text" id="newPhotoTitle" placeholder="e.g. International Conference 2024">
+                                </div>
+                                <div class="admin-field">
+                                    <label>Date / Location</label>
+                                    <input type="text" id="newPhotoDate" placeholder="e.g. IIITDM Kurnool | Dec 2025">
+                                </div>
+                            </div>
+                            <div class="admin-field">
+                                <label>Caption / Description</label>
+                                <input type="text" id="newPhotoCaption" placeholder="Brief context about this visual moment">
+                            </div>
+                            <button type="button" class="admin-btn admin-btn-gold" id="addSinglePhotoToGalleryBtn">
+                                <i class="fas fa-plus"></i> Add to Gallery
+                            </button>
+                        </div>
+
+                        <!-- Active Gallery Items List -->
+                        <div class="tab-pane-header">
+                            <div>
+                                <h5 style="margin: 0; font-size: 1.05rem; color: var(--accent-primary);">Current Gallery Photos (<span id="studioGalleryItemCount">0</span>)</h5>
+                                <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Edit titles, captions, or delete photos from the live auto-scrolling marquee</p>
+                            </div>
+                        </div>
+                        <div class="admin-items-list" id="studioGalleryItemsList">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 12: SECURITY & SETTINGS -->
                     <div class="studio-tab-pane" id="tab-settings">
                         <div class="tab-pane-header">
                             <div>
@@ -1353,6 +1469,35 @@
 
     <!-- Toast Notification Container -->
     <div id="adminToastContainer" class="admin-toast-container"></div>
+
+    <!-- Interactive Gallery Lightbox Modal -->
+    <div id="galleryLightboxModal" class="gallery-lightbox-modal">
+        <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+        <div class="lightbox-container">
+            <button class="lightbox-close-btn" id="lightboxCloseBtn" title="Close Lightbox (Esc)">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="lightbox-nav-btn prev" id="lightboxPrevBtn" title="Previous Image">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="lightbox-nav-btn next" id="lightboxNextBtn" title="Next Image">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <div class="lightbox-content">
+                <div class="lightbox-img-wrapper">
+                    <img id="lightboxImg" src="" alt="Gallery Preview">
+                </div>
+                <div class="lightbox-caption-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span class="lightbox-category" id="lightboxCategory">Conference</span>
+                        <span class="lightbox-date" id="lightboxDate">2024 - 2025</span>
+                    </div>
+                    <h4 id="lightboxTitle">Image Title</h4>
+                    <p id="lightboxCaption">Image Caption</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Back to Top Button -->
     <a href="#hero" class="back-to-top" id="backToTop" title="Back to Top">
