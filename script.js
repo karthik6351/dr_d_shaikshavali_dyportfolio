@@ -635,14 +635,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateAdminUI() {
         const isAdmin = checkAdminAuth();
+        const galleryAdminAction = document.getElementById('galleryAdminAction');
         if (isAdmin) {
             if (adminFloatingBar) adminFloatingBar.style.display = 'flex';
             if (adminLoginTrigger) adminLoginTrigger.style.display = 'none';
             if (changePhotoBtn) changePhotoBtn.style.display = 'flex';
+            if (galleryAdminAction) galleryAdminAction.style.display = 'flex';
         } else {
             if (adminFloatingBar) adminFloatingBar.style.display = 'none';
             if (adminLoginTrigger) adminLoginTrigger.style.display = 'flex';
             if (changePhotoBtn) changePhotoBtn.style.display = 'none';
+            if (galleryAdminAction) galleryAdminAction.style.display = 'none';
             disableQuickEdit();
         }
     }
@@ -2313,7 +2316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sectionMap.forEach(sec => {
             const el = document.getElementById(sec.id);
             if (!el) return;
-            const header = el.querySelector('.section-title, .hero-title');
+            const header = el.querySelector('.section-title, .hero-title, .gallery-title');
             if (header && !header.querySelector('.section-edit-btn')) {
                 const btn = document.createElement('button');
                 btn.className = 'section-edit-btn';
