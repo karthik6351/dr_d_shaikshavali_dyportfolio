@@ -334,35 +334,51 @@
   "gallery": [
     {
       "id": "gal-1",
+      "url": "uploads/gallery_stage_felicitation.jpg",
+      "title": "Faculty Felicitation & Sapling Presentation Ceremony",
+      "caption": "Honored during the college convocation for distinguished contributions to student mentorship and academic innovation",
+      "category": "Felicitation",
+      "date": "Annual Convocation"
+    },
+    {
+      "id": "gal-2",
+      "url": "uploads/gallery_keynote_hall.jpg",
+      "title": "IEEE Keynote: Innovations in Next-Gen VLSI Design",
+      "caption": "Delivering an invited keynote lecture on FinFET architectures and nanoscale semiconductor physics at Victor Menezes Convention Centre",
+      "category": "Conference",
+      "date": "ICVLSID 2024"
+    },
+    {
+      "id": "gal-3",
       "url": "uploads/gallery_conference.jpg",
       "title": "IEEE International Conference Presentation",
-      "caption": "Delivering keynote paper on FinFET VLSI and Nanoscale Semiconductor Devices",
+      "caption": "Presenting research on 7nm node VLSI structures and high-performance Schottky barrier diode design",
       "category": "Conference",
       "date": "2024 - 2025"
     },
     {
-      "id": "gal-2",
+      "id": "gal-4",
+      "url": "uploads/gallery_symposium.jpg",
+      "title": "Academic Excellence & Research Certificate Felicitation",
+      "caption": "Recognized at the Annual Academic Symposium for pioneering publications and high-impact Q1 journal papers",
+      "category": "Symposium",
+      "date": "Annual Awards"
+    },
+    {
+      "id": "gal-5",
       "url": "uploads/gallery_semiconductor_lab.jpg",
       "title": "Cleanroom Nano-Device Fabrication Lab",
       "caption": "Precision wafer inspection and optical microscope testing for next-generation nano-transistors",
       "category": "Research Lab",
-      "date": "Ongoing"
+      "date": "Ongoing Research"
     },
     {
-      "id": "gal-3",
+      "id": "gal-6",
       "url": "uploads/gallery_workshop.jpg",
       "title": "VLSI & Microwave Circuit Prototyping Workshop",
-      "caption": "Mentoring engineering students on circuit design, spectrum analysis, and oscilloscope verification",
+      "caption": "Hands-on student training and oscilloscope verification for high-frequency microwave communications",
       "category": "Workshop",
       "date": "QISCET Campus"
-    },
-    {
-      "id": "gal-4",
-      "url": "uploads/gallery_symposium.jpg",
-      "title": "Academic Excellence & Keynote Felicitation",
-      "caption": "Recognized at the Annual Academic Symposium for pioneering publications and research leadership",
-      "category": "Symposium",
-      "date": "Annual Awards"
     }
   ]
 }

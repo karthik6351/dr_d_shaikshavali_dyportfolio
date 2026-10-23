@@ -779,44 +779,70 @@
             </div>
         </section>
 
-        <!-- ======= Photo Gallery (Auto-Scrolling Showcase) ======= -->
+        <!-- ======= Photo Gallery (Smooth Transition Carousel Showcase) ======= -->
         <section id="gallery" class="section gallery-section">
             <div class="container">
-                <div class="section-header text-center" data-reveal>
-                    <span class="section-tag"><i class="fas fa-camera-retro"></i> Visual Moments</span>
-                    <h2 class="section-title">Academic & Campus Gallery</h2>
-                    <p class="section-description" style="max-width: 650px; margin: 0 auto;">
-                        Moments from IEEE international conferences, cleanroom semiconductor research, interactive university workshops, student mentorship, and academic symposiums.
+                <div class="gallery-header text-center" data-reveal>
+                    <h2 class="gallery-title">Gallery</h2>
+                    <p class="gallery-subtitle">
+                        A visual journey through academic milestones, research events, conferences, and professional engagements.
                     </p>
                 </div>
-            </div>
 
-            <!-- Auto-Scrolling Infinite Marquee Carousel -->
-            <div class="gallery-marquee-container" id="galleryMarqueeWrapper">
-                <div class="gallery-track" id="galleryTrack">
-                    <!-- Populated dynamically via renderPortfolio() and duplicated for infinite scroll -->
-                </div>
-            </div>
+                <!-- Showcase Carousel Card -->
+                <div class="gallery-carousel-container" data-reveal>
+                    <div class="gallery-carousel-card" id="galleryCarouselCard">
+                        <!-- Top-Right Slide Counter Pill Badge (e.g., 3 / 6 or 4 / 15) -->
+                        <div class="carousel-counter-badge" id="carouselCounterBadge" aria-live="polite">
+                            <span id="carouselCurrentSlide">1</span> / <span id="carouselTotalSlides">6</span>
+                        </div>
 
-            <!-- Gallery Controls & Quick Admin Bar -->
-            <div class="container" style="margin-top: 20px;">
-                <div class="gallery-controls-bar">
-                    <div class="gallery-counter">
-                        <i class="fas fa-images"></i> <span id="galleryCountDisplay">4 Moments</span>
-                    </div>
-                    <div class="gallery-action-btns">
-                        <button type="button" class="gallery-ctrl-btn" id="galleryPrevBtn" title="Scroll Left" aria-label="Previous photos">
+                        <!-- Carousel Viewport & Slider Track -->
+                        <div class="carousel-viewport" id="carouselViewport" tabindex="0" aria-label="Photo carousel showcase">
+                            <div class="carousel-track" id="galleryCarouselTrack">
+                                <!-- Populated dynamically with smooth transform slides -->
+                            </div>
+                        </div>
+
+                        <!-- Circular Navigation Arrows -->
+                        <button type="button" class="carousel-nav-btn carousel-nav-prev" id="galleryPrevBtn" aria-label="Previous image" title="Previous Slide (Left Arrow)">
                             <i class="fas fa-chevron-left"></i>
                         </button>
-                        <button type="button" class="gallery-ctrl-btn" id="galleryToggleAutoBtn" title="Pause / Resume Auto-scroll" aria-label="Pause Auto-scroll">
-                            <i class="fas fa-pause" id="galleryPlayPauseIcon"></i>
-                        </button>
-                        <button type="button" class="gallery-ctrl-btn" id="galleryNextBtn" title="Scroll Right" aria-label="Next photos">
+                        <button type="button" class="carousel-nav-btn carousel-nav-next" id="galleryNextBtn" aria-label="Next image" title="Next Slide (Right Arrow)">
                             <i class="fas fa-chevron-right"></i>
                         </button>
-                        <button type="button" class="admin-btn admin-btn-gold" id="openUploadGalleryQuickBtn" style="padding: 6px 14px; font-size: 0.82rem; margin-left: 8px;">
-                            <i class="fas fa-cloud-upload-alt"></i> Manage Photos
-                        </button>
+
+                        <!-- Bottom Frosted Capsule with Pagination Dots (Active dot is elongated gold pill) -->
+                        <div class="carousel-indicators-bar" id="carouselIndicatorsBar" role="tablist" aria-label="Slide indicators">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Subtle Photo Context Overlay (reveals on hover / transition) -->
+                        <div class="carousel-caption-overlay" id="carouselCaptionOverlay">
+                            <div class="carousel-caption-content">
+                                <span class="carousel-caption-tag" id="carouselCaptionTag"><i class="fas fa-award"></i> Academic</span>
+                                <h3 class="carousel-caption-title" id="carouselCaptionTitle">Photo Title</h3>
+                                <p class="carousel-caption-desc" id="carouselCaptionDesc">Photo Caption</p>
+                            </div>
+                            <button type="button" class="carousel-expand-btn" id="carouselExpandBtn" title="View Fullscreen Lightbox">
+                                <i class="fas fa-expand-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Under-carousel quick bar -->
+                    <div class="gallery-underbar">
+                        <div class="gallery-status-info">
+                            <button type="button" class="gallery-play-toggle" id="galleryToggleAutoBtn" title="Pause / Resume Auto-scroll">
+                                <i class="fas fa-pause" id="galleryPlayPauseIcon"></i> <span id="galleryPlayPauseText">Autoplay Active</span>
+                            </button>
+                            <span class="gallery-hint-text"><i class="fas fa-info-circle"></i> Click photo to enlarge or swipe to browse</span>
+                        </div>
+                        <div class="gallery-admin-action">
+                            <button type="button" class="admin-btn admin-btn-gold" id="openUploadGalleryQuickBtn">
+                                <i class="fas fa-cloud-upload-alt"></i> Manage Photos
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

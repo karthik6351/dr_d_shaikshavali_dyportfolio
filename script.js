@@ -1699,108 +1699,309 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========================================================
-    // AUTO-SCROLLING PHOTO GALLERY & LIGHTBOX
+    // PHOTO GALLERY SHOWCASE (SMOOTH TRANSITIONS) & LIGHTBOX
     // ========================================================
     let currentGalleryList = [];
+    let currentGalleryIndex = 0;
     let currentLightboxIndex = 0;
-    let isGalleryPaused = false;
+    let isGalleryAutoplay = true;
+    let galleryAutoplayTimer = null;
+    const AUTOPLAY_INTERVAL = 4500;
 
     function renderPublicGallery(galleryItems) {
-        const track = document.getElementById('galleryTrack');
-        const countDisplay = document.getElementById('galleryCountDisplay');
+        const track = document.getElementById('galleryCarouselTrack');
+        const indicatorsBar = document.getElementById('carouselIndicatorsBar');
+        const totalSlidesEl = document.getElementById('carouselTotalSlides');
+        const currentSlideEl = document.getElementById('carouselCurrentSlide');
         if (!track) return;
 
         currentGalleryList = Array.isArray(galleryItems) && galleryItems.length > 0 
             ? galleryItems 
             : [];
 
-        if (countDisplay) {
-            countDisplay.textContent = `${currentGalleryList.length} Moment${currentGalleryList.length === 1 ? '' : 's'}`;
+        if (totalSlidesEl) {
+            totalSlidesEl.textContent = currentGalleryList.length;
         }
 
         if (currentGalleryList.length === 0) {
             track.innerHTML = `
-                <div style="padding: 40px; color: var(--text-muted); text-align: center; width: 100%;">
-                    <i class="fas fa-camera-retro" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                    No gallery photos uploaded yet. Click "Manage Photos" to upload campus and conference moments.
+                <div style="padding: 60px 20px; color: var(--text-muted); text-align: center; width: 100%;">
+                    <i class="fas fa-camera-retro" style="font-size: 2.4rem; margin-bottom: 12px; display: block; color: var(--accent-secondary);"></i>
+                    <p style="font-size: 1rem; margin: 0 0 10px 0;">No gallery moments uploaded yet.</p>
+                    <p style="font-size: 0.85rem; margin: 0;">Click "Manage Photos" below to upload campus and conference photos.</p>
                 </div>
             `;
+            if (indicatorsBar) indicatorsBar.innerHTML = '';
+            if (currentSlideEl) currentSlideEl.textContent = '0';
+            stopGalleryAutoplay();
             return;
         }
 
-        function createCardHtml(item, index) {
+        // Render Slides
+        track.innerHTML = currentGalleryList.map((item, idx) => {
             const rawUrl = item.url || '';
             const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('data:') 
                 ? rawUrl 
                 : `${getApiBaseUrl()}/${rawUrl.replace(/^\//, '')}`;
 
             return `
-                <div class="gallery-card" data-gallery-index="${index}" title="Click to view ${item.title || 'photo'}">
-                    <img class="gallery-card-img" src="${fullUrl}" alt="${item.title || 'Gallery Moment'}" loading="lazy">
-                    <div class="gallery-card-overlay">
-                        <div class="gallery-card-header">
-                            <span class="gallery-tag-chip"><i class="fas fa-tag"></i> ${item.category || 'Academic'}</span>
-                            <div class="gallery-zoom-icon"><i class="fas fa-search-plus"></i></div>
-                        </div>
-                        <div class="gallery-card-info">
-                            <h4>${item.title || 'Academic Moment'}</h4>
-                            <p>${item.caption || item.date || ''}</p>
-                        </div>
+                <div class="carousel-slide ${idx === 0 ? 'active' : ''}" data-gallery-index="${idx}">
+                    <div class="carousel-slide-img-wrapper" title="Click to view full photo: ${item.title || 'Photo'}">
+                        <img src="${fullUrl}" alt="${item.title || 'Academic Moment'}" loading="${idx === 0 ? 'eager' : 'lazy'}">
                     </div>
                 </div>
             `;
+        }).join('');
+
+        // Render Indicators (Dots & elongated pill for active)
+        if (indicatorsBar) {
+            indicatorsBar.innerHTML = currentGalleryList.map((item, idx) => `
+                <button type="button" class="carousel-indicator-dot ${idx === 0 ? 'active' : ''}" 
+                    data-slide-index="${idx}" 
+                    aria-label="Go to slide ${idx + 1} of ${currentGalleryList.length}"
+                    title="Slide ${idx + 1}: ${item.title || 'Moment'}">
+                </button>
+            `).join('');
+
+            // Click listener for indicators
+            indicatorsBar.querySelectorAll('.carousel-indicator-dot').forEach(dot => {
+                dot.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const targetIndex = parseInt(dot.getAttribute('data-slide-index'), 10);
+                    goToSlide(targetIndex, true);
+                });
+            });
         }
 
-        // Duplicate the list so the CSS infinite loop (-50%) is seamless
-        const repeatCount = currentGalleryList.length < 4 ? 4 : 2;
-        let trackHtml = '';
-        for (let r = 0; r < repeatCount; r++) {
-            trackHtml += currentGalleryList.map((item, idx) => createCardHtml(item, idx)).join('');
-        }
-        track.innerHTML = trackHtml;
-
-        // Attach click listener for Lightbox
-        track.querySelectorAll('.gallery-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const idx = parseInt(card.getAttribute('data-gallery-index'), 10);
+        // Click on slide image opens Lightbox
+        track.querySelectorAll('.carousel-slide-img-wrapper').forEach((wrapper, idx) => {
+            wrapper.addEventListener('click', () => {
                 openLightbox(idx);
             });
         });
+
+        // Initialize at slide 0
+        currentGalleryIndex = 0;
+        updateCarouselUI(false);
+        startGalleryAutoplay();
     }
 
-    // Public Gallery Controls: Play/Pause, Next, Prev
-    const galleryToggleAutoBtn = document.getElementById('galleryToggleAutoBtn');
-    const galleryPlayPauseIcon = document.getElementById('galleryPlayPauseIcon');
+    function goToSlide(newIndex, isManual = false) {
+        if (!currentGalleryList || currentGalleryList.length === 0) return;
+        const total = currentGalleryList.length;
+        currentGalleryIndex = (newIndex + total) % total;
+        updateCarouselUI(true);
+
+        if (isManual) {
+            resetGalleryAutoplay();
+        }
+    }
+
+    function updateCarouselUI(smooth = true) {
+        const track = document.getElementById('galleryCarouselTrack');
+        const currentSlideEl = document.getElementById('carouselCurrentSlide');
+        const totalSlidesEl = document.getElementById('carouselTotalSlides');
+        const indicatorsBar = document.getElementById('carouselIndicatorsBar');
+
+        if (!track || currentGalleryList.length === 0) return;
+
+        // Apply smooth GPU transform
+        track.style.transition = smooth ? 'transform 0.65s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+        track.style.transform = `translate3d(-${currentGalleryIndex * 100}%, 0, 0)`;
+
+        // Update active class on slides
+        const slides = track.querySelectorAll('.carousel-slide');
+        slides.forEach((slide, idx) => {
+            slide.classList.toggle('active', idx === currentGalleryIndex);
+        });
+
+        // Update counter badge
+        if (currentSlideEl) currentSlideEl.textContent = currentGalleryIndex + 1;
+        if (totalSlidesEl) totalSlidesEl.textContent = currentGalleryList.length;
+
+        // Update active indicator pill
+        if (indicatorsBar) {
+            const dots = indicatorsBar.querySelectorAll('.carousel-indicator-dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === currentGalleryIndex);
+            });
+        }
+
+        // Update caption overlay
+        updateCaptionOverlay(currentGalleryIndex);
+    }
+
+    function updateCaptionOverlay(index) {
+        const item = currentGalleryList[index];
+        if (!item) return;
+
+        const tagEl = document.getElementById('carouselCaptionTag');
+        const titleEl = document.getElementById('carouselCaptionTitle');
+        const descEl = document.getElementById('carouselCaptionDesc');
+
+        if (tagEl) {
+            tagEl.innerHTML = `<i class="fas fa-tag"></i> ${item.category || 'Academic'}`;
+        }
+        if (titleEl) {
+            titleEl.textContent = item.title || 'Academic Moment';
+        }
+        if (descEl) {
+            descEl.textContent = item.caption || item.date || '';
+        }
+    }
+
+    function nextSlide(isManual = false) {
+        goToSlide(currentGalleryIndex + 1, isManual);
+    }
+
+    function prevSlide(isManual = false) {
+        goToSlide(currentGalleryIndex - 1, isManual);
+    }
+
+    function startGalleryAutoplay() {
+        if (!isGalleryAutoplay || currentGalleryList.length <= 1) return;
+        stopGalleryAutoplay();
+        galleryAutoplayTimer = setInterval(() => {
+            nextSlide(false);
+        }, AUTOPLAY_INTERVAL);
+    }
+
+    function stopGalleryAutoplay() {
+        if (galleryAutoplayTimer) {
+            clearInterval(galleryAutoplayTimer);
+            galleryAutoplayTimer = null;
+        }
+    }
+
+    function resetGalleryAutoplay() {
+        if (!isGalleryAutoplay) return;
+        stopGalleryAutoplay();
+        startGalleryAutoplay();
+    }
+
+    // Attach Carousel Navigation Event Listeners
     const galleryPrevBtn = document.getElementById('galleryPrevBtn');
     const galleryNextBtn = document.getElementById('galleryNextBtn');
-    const galleryTrackEl = document.getElementById('galleryTrack');
+    const galleryCarouselCard = document.getElementById('galleryCarouselCard');
+    const galleryToggleAutoBtn = document.getElementById('galleryToggleAutoBtn');
+    const galleryPlayPauseIcon = document.getElementById('galleryPlayPauseIcon');
+    const galleryPlayPauseText = document.getElementById('galleryPlayPauseText');
     const openUploadGalleryQuickBtn = document.getElementById('openUploadGalleryQuickBtn');
+    const carouselExpandBtn = document.getElementById('carouselExpandBtn');
+    const carouselViewport = document.getElementById('carouselViewport');
 
-    if (galleryToggleAutoBtn && galleryTrackEl) {
+    if (galleryPrevBtn) {
+        galleryPrevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            prevSlide(true);
+        });
+    }
+
+    if (galleryNextBtn) {
+        galleryNextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            nextSlide(true);
+        });
+    }
+
+    if (carouselExpandBtn) {
+        carouselExpandBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openLightbox(currentGalleryIndex);
+        });
+    }
+
+    // Pause autoplay on mouse hover, resume on mouse leave
+    if (galleryCarouselCard) {
+        galleryCarouselCard.addEventListener('mouseenter', () => {
+            stopGalleryAutoplay();
+        });
+        galleryCarouselCard.addEventListener('mouseleave', () => {
+            if (isGalleryAutoplay) startGalleryAutoplay();
+        });
+    }
+
+    // Autoplay toggle button
+    if (galleryToggleAutoBtn) {
         galleryToggleAutoBtn.addEventListener('click', () => {
-            isGalleryPaused = !isGalleryPaused;
-            galleryTrackEl.classList.toggle('is-paused', isGalleryPaused);
+            isGalleryAutoplay = !isGalleryAutoplay;
+            galleryToggleAutoBtn.classList.toggle('is-paused', !isGalleryAutoplay);
             if (galleryPlayPauseIcon) {
-                galleryPlayPauseIcon.className = isGalleryPaused ? 'fas fa-play' : 'fas fa-pause';
+                galleryPlayPauseIcon.className = isGalleryAutoplay ? 'fas fa-pause' : 'fas fa-play';
             }
-            showToast(isGalleryPaused ? 'Auto-scroll paused' : 'Auto-scroll resumed');
+            if (galleryPlayPauseText) {
+                galleryPlayPauseText.textContent = isGalleryAutoplay ? 'Autoplay Active' : 'Autoplay Paused';
+            }
+            if (isGalleryAutoplay) {
+                startGalleryAutoplay();
+                showToast('Slideshow autoplay resumed');
+            } else {
+                stopGalleryAutoplay();
+                showToast('Slideshow paused');
+            }
         });
     }
 
-    if (galleryPrevBtn && galleryTrackEl) {
-        galleryPrevBtn.addEventListener('click', () => {
-            const wrapper = document.getElementById('galleryMarqueeWrapper');
-            if (wrapper) wrapper.scrollBy({ left: -360, behavior: 'smooth' });
+    // Touch Swipe Gesture Support
+    if (carouselViewport) {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isTouching = false;
+
+        carouselViewport.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches[0]) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                isTouching = true;
+                stopGalleryAutoplay();
+            }
+        }, { passive: true });
+
+        carouselViewport.addEventListener('touchend', (e) => {
+            if (!isTouching) return;
+            isTouching = false;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX < 0) {
+                    nextSlide(true);
+                } else {
+                    prevSlide(true);
+                }
+            }
+            if (isGalleryAutoplay) resetGalleryAutoplay();
+        }, { passive: true });
+
+        // Mouse Drag Support
+        let mouseStartX = 0;
+        let isMouseDown = false;
+
+        carouselViewport.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseStartX = e.clientX;
+            stopGalleryAutoplay();
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+            const mouseEndX = e.clientX;
+            const diffX = mouseEndX - mouseStartX;
+            if (Math.abs(diffX) > 50) {
+                if (diffX < 0) {
+                    nextSlide(true);
+                } else {
+                    prevSlide(true);
+                }
+            }
+            if (isGalleryAutoplay) resetGalleryAutoplay();
         });
     }
 
-    if (galleryNextBtn && galleryTrackEl) {
-        galleryNextBtn.addEventListener('click', () => {
-            const wrapper = document.getElementById('galleryMarqueeWrapper');
-            if (wrapper) wrapper.scrollBy({ left: 360, behavior: 'smooth' });
-        });
-    }
-
+    // Quick Admin Button to Open Studio Gallery Tab
     if (openUploadGalleryQuickBtn) {
         openUploadGalleryQuickBtn.addEventListener('click', () => {
             if (checkAdminAuth()) {
@@ -1810,6 +2011,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Keyboard Navigation for Gallery (Arrow keys when gallery in viewport)
+    window.addEventListener('keydown', (e) => {
+        if (galleryLightboxModal && galleryLightboxModal.classList.contains('active')) return;
+        const galleryEl = document.getElementById('gallery');
+        if (!galleryEl) return;
+        const rect = galleryEl.getBoundingClientRect();
+        const isInView = rect.top < window.innerHeight && rect.bottom > 0;
+        if (isInView) {
+            if (e.key === 'ArrowLeft') prevSlide(true);
+            if (e.key === 'ArrowRight') nextSlide(true);
+        }
+    });
 
     // Lightbox Modal Controls
     const galleryLightboxModal = document.getElementById('galleryLightboxModal');
